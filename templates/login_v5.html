@@ -1,0 +1,113 @@
+{% extends "base_v5.html" %}
+
+{% block title %}Login - TechNotes{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-card card">
+        <h1>Welcome Back</h1>
+        <p>Sign in to access your reading list</p>
+
+        {% if error %}
+        <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" autofocus required>
+            </div>
+            <button type="submit" class="btn-login">Sign In</button>
+        </form>
+
+        <p class="login-footer">Personal reading archive</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .login-wrapper {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 400px;
+        padding: 40px;
+        text-align: center;
+    }
+
+    .login-card h1 {
+        font-family: 'Merriweather', serif;
+        font-size: 1.75rem;
+        margin-bottom: 8px;
+    }
+
+    .login-card > p {
+        color: var(--text-muted);
+        margin-bottom: 30px;
+    }
+
+    .error-msg {
+        background: #f8d7da;
+        color: #842029;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+
+    .form-group {
+        text-align: left;
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 1rem;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+    }
+
+    .btn-login {
+        width: 100%;
+        padding: 12px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-login:hover {
+        background: #0b5ed7;
+    }
+
+    .login-footer {
+        margin-top: 24px;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}

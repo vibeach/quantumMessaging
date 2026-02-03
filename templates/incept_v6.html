@@ -1,0 +1,1923 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Incept{% endblock %}
+
+{% block extra_styles %}
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.page-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.refresh-time {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.refresh-btn {
+    margin-left: auto;
+    padding: 6px 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.settings-section {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.settings-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 600px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.setting-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover {
+    background: var(--border);
+}
+
+.mode-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.mode-btn:not(:last-child) {
+    border-right: 1px solid var(--border);
+}
+
+.model-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.model-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.model-description {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.request-section {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.request-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.request-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.request-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.request-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.request-textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.submit-btn {
+    align-self: flex-end;
+    padding: 10px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.submit-btn:hover {
+    opacity: 0.9;
+}
+
+.submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.log-section {
+    padding: 16px;
+}
+
+.log-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.log-entry {
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    border-left: 3px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.log-entry:hover {
+    transform: translateX(4px);
+}
+
+.log-entry a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.log-entry.pending {
+    border-left-color: #f59e0b;
+}
+
+.log-entry.processing {
+    border-left-color: var(--accent);
+}
+
+.log-entry.completed {
+    border-left-color: #10b981;
+}
+
+.log-entry.error {
+    border-left-color: #ef4444;
+}
+
+.log-entry.cancelled {
+    border-left-color: #6b7280;
+    opacity: 0.7;
+}
+
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.log-status {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--border);
+}
+
+.log-entry.pending .log-status {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.log-entry.processing .log-status {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.log-entry.completed .log-status {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.log-entry.error .log-status {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.log-entry.cancelled .log-status {
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
+[data-theme="dark"] .log-entry.cancelled .log-status {
+    background: #374151;
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .log-entry.pending .log-status {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+[data-theme="dark"] .log-entry.processing .log-status {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+[data-theme="dark"] .log-entry.completed .log-status {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+[data-theme="dark"] .log-entry.error .log-status {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+.log-time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: auto;
+}
+
+.log-id {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.log-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+.log-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+
+.action-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.action-btn:hover {
+    background: var(--border);
+}
+
+.action-btn.cancel {
+    border-color: #f59e0b;
+    color: #b45309;
+}
+
+.action-btn.cancel:hover {
+    background: #fef3c7;
+}
+
+.action-btn.restart {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.action-btn.restart:hover {
+    background: #dbeafe;
+}
+
+.action-btn.delete {
+    border-color: #ef4444;
+    color: #dc2626;
+}
+
+.action-btn.delete:hover {
+    background: #fee2e2;
+}
+
+[data-theme="dark"] .action-btn.cancel:hover {
+    background: #78350f;
+}
+
+[data-theme="dark"] .action-btn.restart:hover {
+    background: #1e3a8a;
+}
+
+[data-theme="dark"] .action-btn.delete:hover {
+    background: #7f1d1d;
+}
+
+.log-text {
+    font-size: 0.9rem;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.log-meta {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.log-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--border);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.log-badge.api {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.log-badge.local {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.log-badge.continuation {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+
+.log-badge.interrupted {
+    background: #fed7aa;
+    color: #c2410c;
+}
+
+.log-badge.restart-count {
+    background: #ddd6fe;
+    color: #6d28d9;
+}
+
+[data-theme="dark"] .log-badge.api {
+    background: #1e3a8a;
+    color: #bfdbfe;
+}
+
+[data-theme="dark"] .log-badge.local {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+[data-theme="dark"] .log-badge.continuation {
+    background: #3730a3;
+    color: #c7d2fe;
+}
+
+[data-theme="dark"] .log-badge.interrupted {
+    background: #7c2d12;
+    color: #fed7aa;
+}
+
+[data-theme="dark"] .log-badge.restart-count {
+    background: #5b21b6;
+    color: #ddd6fe;
+}
+
+.progress-timeline {
+    margin-top: 8px;
+    padding: 6px 0;
+    min-height: 24px;
+    pointer-events: none;
+}
+
+.timeline-loading {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    opacity: 0;
+}
+
+.progress-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.progress-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.4;
+    position: relative;
+    cursor: help;
+}
+
+.progress-dot.info {
+    background: var(--accent);
+    opacity: 0.6;
+}
+
+.progress-dot.success {
+    background: #10b981;
+    opacity: 0.8;
+}
+
+.progress-dot.error {
+    background: #ef4444;
+    opacity: 0.9;
+}
+
+.progress-dot.warning {
+    background: #f59e0b;
+    opacity: 0.8;
+}
+
+.progress-dot:hover {
+    opacity: 1;
+    transform: scale(1.5);
+}
+
+.progress-dot::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border);
+}
+
+.progress-dot:hover::after {
+    opacity: 1;
+}
+
+.timeline-separator {
+    width: 1px;
+    height: 8px;
+    background: var(--border);
+    opacity: 0.5;
+    margin: 0 2px;
+}
+
+.last-update-time {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-left: 6px;
+    opacity: 0.7;
+    white-space: nowrap;
+}
+
+/* Restart modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.modal-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.modal-btn.cancel {
+    background: var(--border);
+    color: var(--text);
+}
+
+.modal-btn.primary {
+    background: var(--accent);
+    color: white;
+}
+
+.log-response {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.success-msg {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    display: none;
+}
+
+[data-theme="dark"] .success-msg {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+.processor-status {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+}
+
+.status-indicator.active .status-dot {
+    background: #10b981;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.status-help {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.status-help code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+}
+
+.processor-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.processor-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.processor-btn.start {
+    background: #10b981;
+    color: white;
+}
+
+.processor-btn.start:hover {
+    background: #059669;
+}
+
+.processor-btn.stop {
+    background: #ef4444;
+    color: white;
+}
+
+.processor-btn.stop:hover {
+    background: #dc2626;
+}
+
+.processor-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.api-warning {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+}
+
+[data-theme="dark"] .api-warning {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+.git-status-section {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.git-status-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.git-status-content {
+    background: var(--bg);
+    padding: 12px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+}
+
+.git-loading {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px;
+}
+
+.git-branch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.git-branch-name {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.git-clean-badge {
+    background: #10b981;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.git-changes-badge {
+    background: #f59e0b;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.git-ahead-badge {
+    background: var(--accent);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.git-files {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.git-file-group {
+    margin-bottom: 8px;
+}
+
+.git-file-group-title {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.git-file {
+    padding: 4px 8px;
+    background: var(--card-bg);
+    border-radius: 3px;
+    margin-bottom: 2px;
+    color: var(--text);
+}
+
+.git-file.modified {
+    border-left: 3px solid #f59e0b;
+}
+
+.git-file.untracked {
+    border-left: 3px solid #6b7280;
+}
+
+.git-file.staged {
+    border-left: 3px solid #10b981;
+}
+
+.git-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+}
+
+.git-commits {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.git-commits-title {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.git-commit {
+    padding: 6px 8px;
+    background: var(--card-bg);
+    border-radius: 3px;
+    margin-bottom: 4px;
+    font-size: 0.8rem;
+    border-left: 2px solid var(--accent);
+}
+
+.git-latest-commit {
+    padding: 8px 12px;
+    background: var(--card-bg);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    border-left: 3px solid #10b981;
+}
+
+.git-commit-hash {
+    color: var(--accent);
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.git-commit-info {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+.git-push-btn {
+    padding: 10px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+
+.git-push-btn:hover {
+    opacity: 0.9;
+}
+
+.git-push-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.git-error {
+    color: #ef4444;
+    padding: 8px 12px;
+    background: #fee2e2;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+
+[data-theme="dark"] .git-error {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+/* Compact git status bar for top of page */
+.git-quick-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.git-quick-status .git-icon {
+    font-size: 1.1rem;
+}
+
+.git-quick-branch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.git-quick-branch .branch-name {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.git-quick-commit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    flex: 1;
+    min-width: 200px;
+}
+
+.git-quick-commit .commit-hash {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+}
+
+.git-quick-commit .commit-msg {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+}
+
+.git-quick-commit .commit-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.git-quick-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.git-quick-badge {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.git-quick-badge.clean {
+    background: #10b981;
+    color: white;
+}
+
+.git-quick-badge.changes {
+    background: #f59e0b;
+    color: white;
+}
+
+.git-quick-badge.unpushed {
+    background: #8b5cf6;
+    color: white;
+}
+
+.git-quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.git-quick-push-btn {
+    padding: 6px 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.git-quick-push-btn:hover {
+    opacity: 0.9;
+}
+
+.git-quick-push-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.git-quick-link {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-decoration: none;
+}
+
+.git-quick-link:hover {
+    color: var(--accent);
+}
+
+/* Enhanced bottom git section - detailed commits */
+.git-detailed-commits {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.git-detailed-commit {
+    padding: 12px;
+    background: var(--card-bg);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--accent);
+}
+
+.git-detailed-commit-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.git-detailed-commit-hash {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 0.85rem;
+}
+
+.git-detailed-commit-time {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.git-detailed-commit-author {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-left: auto;
+}
+
+.git-detailed-commit-msg {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.git-detailed-commit-files {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.git-detailed-commit-files span {
+    margin-right: 12px;
+}
+
+.git-detailed-commit-files .additions {
+    color: #10b981;
+}
+
+.git-detailed-commit-files .deletions {
+    color: #ef4444;
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <span class="page-title">Incept</span>
+    <span class="refresh-time">{{ last_refresh }}</span>
+    <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+</div>
+
+<!-- Compact Git Status Bar -->
+<div class="git-quick-status" id="git-quick-status">
+    <span class="git-icon">⎇</span>
+    <div class="git-quick-branch">
+        <span class="branch-name" id="quick-branch">...</span>
+    </div>
+    <div class="git-quick-commit" id="quick-commit">
+        <span class="commit-hash" id="quick-hash">...</span>
+        <span class="commit-msg" id="quick-msg">Loading...</span>
+        <span class="commit-time" id="quick-time"></span>
+    </div>
+    <div class="git-quick-badges" id="quick-badges"></div>
+    <div class="git-quick-actions">
+        <button class="git-quick-push-btn" id="quick-push-btn" onclick="pushToGit()" style="display: none;">
+            Push
+        </button>
+        <a href="#git-status-section" class="git-quick-link">↓ Details</a>
+    </div>
+</div>
+
+<div class="settings-section card">
+    <h3>Processing Mode</h3>
+    <div class="settings-grid">
+        <div class="setting-group">
+            <span class="setting-label">Mode</span>
+            <div class="mode-toggle">
+                <button class="mode-btn {% if settings.mode == 'api' %}active{% endif %}" data-mode="api" title="Uses API credits">
+                    API
+                </button>
+                <button class="mode-btn {% if settings.mode == 'cli_token' %}active{% endif %}" data-mode="cli_token" title="Uses Max subscription via token">
+                    CLI Token
+                </button>
+                <button class="mode-btn {% if settings.mode == 'local' %}active{% endif %}" data-mode="local" title="Uses local Claude CLI">
+                    Local CLI
+                </button>
+            </div>
+        </div>
+        <div class="setting-group" id="model-group">
+            <span class="setting-label">Model</span>
+            <select class="model-select" id="model-select">
+                {% for model in available_models %}
+                <option value="{{ model.id }}" {% if settings.model == model.id %}selected{% endif %}>
+                    {{ model.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <span class="model-description" id="model-description">
+                {% for model in available_models %}
+                    {% if settings.model == model.id %}{{ model.description }}{% endif %}
+                {% endfor %}
+            </span>
+        </div>
+    </div>
+    <div style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">
+        <strong>Auth Status:</strong>
+        <span style="margin-left: 8px;">API Key: {% if has_api_key %}<span style="color: #10b981;">Set</span>{% else %}<span style="color: #ef4444;">Not set</span>{% endif %}</span>
+        <span style="margin-left: 12px;">OAuth Token: {% if has_oauth_token %}<span style="color: #10b981;">Set</span>{% else %}<span style="color: #ef4444;">Not set</span>{% endif %}</span>
+    </div>
+    {% if not has_api_key and not has_oauth_token %}
+    <div class="api-warning" style="margin-top: 8px;">
+        No authentication configured. Set ANTHROPIC_API_KEY for API mode, or run <code>claude setup-token</code> for CLI Token mode.
+    </div>
+    {% elif not has_oauth_token %}
+    <div class="api-warning" style="margin-top: 8px;">
+        CLI Token mode requires OAuth token. Run <code>claude setup-token</code> locally, then set CLAUDE_CODE_OAUTH_TOKEN on Render.
+    </div>
+    {% endif %}
+</div>
+
+<div class="processor-status card" id="processor-status">
+    <div class="status-indicator {{ 'active' if processor_running else 'inactive' }}" id="status-indicator">
+        <span class="status-dot"></span>
+        <span class="status-text" id="status-text">Processor: {{ 'Running' if processor_running else 'Stopped' }}</span>
+    </div>
+    <div class="processor-controls">
+        <button class="processor-btn start" id="start-processor-btn" onclick="startProcessor()" {% if processor_running %}style="display:none"{% endif %}>
+            Start
+        </button>
+        <button class="processor-btn stop" id="stop-processor-btn" onclick="stopProcessor()" {% if not processor_running %}style="display:none"{% endif %}>
+            Stop
+        </button>
+    </div>
+</div>
+
+<div class="request-section card">
+    <h3>Request Self-Improvement</h3>
+    <form class="request-form" id="request-form">
+        <textarea class="request-textarea" id="request-text" placeholder="Describe what you want to change or add...&#10;&#10;Example: Add a button to export messages as CSV"></textarea>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+                <input type="checkbox" id="auto-push-toggle" checked style="width: 16px; height: 16px; cursor: pointer;">
+                <span>Auto-push to git after changes</span>
+            </label>
+            <span style="color: var(--text-muted); font-size: 0.8rem;">Uncheck if you want to make multiple changes before pushing</span>
+        </div>
+        <div class="success-msg" id="success-msg">Request submitted successfully!</div>
+        <button type="submit" class="submit-btn" id="submit-btn">Send Request</button>
+    </form>
+</div>
+
+<div class="log-section card">
+    <h3>Request Log</h3>
+    <div class="log-list" id="log-list">
+        {% if requests %}
+            {% for req in requests %}
+            <div class="log-entry {{ req.status }}" data-id="{{ req.id }}" data-mode="{{ req.mode or 'api' }}" data-model="{{ req.model or 'claude-sonnet-4-20250514' }}">
+                <a href="{{ url_for('incept_detail', req_id=req.id) }}" style="text-decoration: none; color: inherit;">
+                    <div class="log-header">
+                        <span class="log-status">{{ req.status }}</span>
+                        <span class="log-id">#{{ req.id }}</span>
+                        <span class="log-time">{{ req.created_at[5:16] if req.created_at else '' }}</span>
+                    </div>
+                    <div class="log-text">{{ req.text[:100] }}{% if req.text|length > 100 %}...{% endif %}</div>
+                    <div class="log-meta">
+                        <span class="log-badge {{ req.mode or 'api' }}">{{ (req.mode or 'api')|upper }}</span>
+                        <span class="log-badge">{{ (req.model or 'sonnet-4')|replace('claude-', '')|replace('-20250514', '')|replace('-20241022', '') }}</span>
+                        {% if req.interrupted %}
+                        <span class="log-badge interrupted">⚠ Interrupted</span>
+                        {% endif %}
+                        {% if req.parent_id %}
+                        <span class="log-badge continuation">↳ from #{{ req.parent_id }}</span>
+                        {% endif %}
+                        {% if req.restart_count and req.restart_count > 0 %}
+                        <span class="log-badge restart-count">🔄 #{{ req.restart_count }}</span>
+                        {% endif %}
+                    </div>
+                    <!-- Progress timeline dots -->
+                    <div class="progress-timeline" data-req-id="{{ req.id }}">
+                        <div class="timeline-loading">Loading progress...</div>
+                    </div>
+                </a>
+                <div class="log-actions">
+                    {% if req.status in ['pending', 'processing'] %}
+                    <button class="action-btn cancel" onclick="cancelRequest({{ req.id }}, event)">Cancel</button>
+                    {% endif %}
+                    <button class="action-btn restart" onclick="showRestartModal({{ req.id }}, '{{ req.mode or 'api' }}', '{{ req.model or 'claude-sonnet-4-20250514' }}', event)">Restart</button>
+                    <button class="action-btn delete" onclick="deleteRequest({{ req.id }}, event)">Delete</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No requests yet. Submit a request above to get started.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Restart Modal -->
+<div class="modal-overlay" id="restart-modal">
+    <div class="modal-content">
+        <div class="modal-title">Restart Request</div>
+        <form class="modal-form" id="restart-form">
+            <input type="hidden" id="restart-req-id">
+            <div class="setting-group">
+                <span class="setting-label">Mode</span>
+                <div class="mode-toggle">
+                    <button type="button" class="mode-btn" data-mode="api" id="restart-mode-api">API</button>
+                    <button type="button" class="mode-btn" data-mode="cli_token" id="restart-mode-cli_token">CLI Token</button>
+                    <button type="button" class="mode-btn" data-mode="local" id="restart-mode-local">Local CLI</button>
+                </div>
+            </div>
+            <div class="setting-group">
+                <span class="setting-label">Model</span>
+                <select class="model-select" id="restart-model-select">
+                    {% for model in available_models %}
+                    <option value="{{ model.id }}">{{ model.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn cancel" onclick="closeRestartModal()">Cancel</button>
+                <button type="submit" class="modal-btn primary">Restart with Context</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="git-status-section card" id="git-status-section">
+    <h3>Git Status & History</h3>
+    <div class="git-status-content" id="git-status-content">
+        <div class="git-loading">Loading git status...</div>
+    </div>
+    <div class="git-actions" id="git-actions" style="display: none;">
+        <button class="git-push-btn" id="git-push-btn" onclick="pushToGit()">Push All Changes</button>
+    </div>
+    <!-- Detailed commit history section -->
+    <div class="git-detailed-commits" id="git-detailed-commits">
+        <div class="git-commits-title">Detailed Commit History</div>
+        <div id="detailed-commits-list">
+            <div style="color: var(--text-muted); text-align: center; padding: 20px;">Loading commit history...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const textarea = document.getElementById('request-text');
+const DRAFT_KEY = 'incept_request_draft';
+let isTyping = false;
+let typingTimeout = null;
+
+// Model descriptions
+const modelDescriptions = {
+    {% for model in available_models %}
+    '{{ model.id }}': '{{ model.description }}'{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Restore draft on page load
+const savedDraft = localStorage.getItem(DRAFT_KEY);
+if (savedDraft) {
+    textarea.value = savedDraft;
+}
+
+// Save draft while typing and track typing state
+textarea.addEventListener('input', () => {
+    localStorage.setItem(DRAFT_KEY, textarea.value);
+    isTyping = true;
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => { isTyping = false; }, 5000);
+});
+
+// Also pause refresh while textarea is focused
+textarea.addEventListener('focus', () => { isTyping = true; });
+textarea.addEventListener('blur', () => {
+    setTimeout(() => { isTyping = false; }, 1000);
+});
+
+// Mode toggle
+document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const mode = btn.dataset.mode;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        await saveSettings();
+    });
+});
+
+// Model select
+document.getElementById('model-select').addEventListener('change', async (e) => {
+    const desc = modelDescriptions[e.target.value] || '';
+    document.getElementById('model-description').textContent = desc;
+    await saveSettings();
+});
+
+async function saveSettings() {
+    const mode = document.querySelector('.mode-btn.active').dataset.mode;
+    const model = document.getElementById('model-select').value;
+
+    try {
+        await fetch('/api/incept/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode, model })
+        });
+    } catch (err) {
+        console.error('Failed to save settings:', err);
+    }
+}
+
+document.getElementById('request-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submit-btn');
+    const successMsg = document.getElementById('success-msg');
+    const text = textarea.value.trim();
+    const autoPush = document.getElementById('auto-push-toggle').checked;
+
+    if (!text) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    try {
+        const response = await fetch('/api/incept/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text, auto_push: autoPush })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            textarea.value = '';
+            localStorage.removeItem(DRAFT_KEY);
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+                location.reload();
+            }, 1500);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Error submitting request: ' + err.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Request';
+    }
+});
+
+// Auto-refresh every 30 seconds, but only if not typing
+setInterval(() => {
+    if (!isTyping && textarea.value.trim() === '') {
+        location.reload();
+    }
+}, 30000);
+
+// Model selection works for both API and Local CLI modes
+
+// Action functions
+async function cancelRequest(reqId, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!confirm('Cancel this request?')) return;
+
+    try {
+        const response = await fetch(`/api/incept/request/${reqId}/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Could not cancel'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// Restart modal functions
+function showRestartModal(reqId, mode, model, event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    document.getElementById('restart-req-id').value = reqId;
+
+    // Set mode
+    document.querySelectorAll('#restart-modal .mode-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`restart-mode-${mode}`).classList.add('active');
+
+    // Set model
+    document.getElementById('restart-model-select').value = model;
+
+    // Show modal
+    document.getElementById('restart-modal').classList.add('active');
+}
+
+function closeRestartModal() {
+    document.getElementById('restart-modal').classList.remove('active');
+}
+
+// Handle mode toggle in restart modal
+document.querySelectorAll('#restart-modal .mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#restart-modal .mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    });
+});
+
+// Handle restart form submission
+document.getElementById('restart-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const reqId = document.getElementById('restart-req-id').value;
+    const mode = document.querySelector('#restart-modal .mode-btn.active').dataset.mode;
+    const model = document.getElementById('restart-model-select').value;
+
+    try {
+        const response = await fetch(`/api/incept/request/${reqId}/restart`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode, model })
+        });
+        const data = await response.json();
+        if (data.success) {
+            closeRestartModal();
+            alert('Request restarted as #' + data.new_id + ' (with context from #' + reqId + ')');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Could not restart'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+});
+
+// Close modal on overlay click
+document.getElementById('restart-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeRestartModal();
+    }
+});
+
+async function deleteRequest(reqId, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!confirm('Delete this request and all its logs? This cannot be undone.')) return;
+
+    try {
+        const response = await fetch(`/api/incept/request/${reqId}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Could not delete'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// Processor control functions
+async function startProcessor() {
+    const btn = document.getElementById('start-processor-btn');
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+
+    try {
+        const response = await fetch('/api/incept/processor/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+
+        if (data.success || data.running) {
+            updateProcessorUI(true);
+        } else {
+            alert('Failed to start processor: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Start';
+    }
+}
+
+async function stopProcessor() {
+    const btn = document.getElementById('stop-processor-btn');
+    btn.disabled = true;
+    btn.textContent = 'Stopping...';
+
+    try {
+        const response = await fetch('/api/incept/processor/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+
+        // Wait a moment for the thread to stop
+        setTimeout(() => {
+            updateProcessorUI(data.running);
+        }, 1000);
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Stop';
+    }
+}
+
+function updateProcessorUI(running) {
+    const indicator = document.getElementById('status-indicator');
+    const statusText = document.getElementById('status-text');
+    const startBtn = document.getElementById('start-processor-btn');
+    const stopBtn = document.getElementById('stop-processor-btn');
+
+    if (running) {
+        indicator.classList.remove('inactive');
+        indicator.classList.add('active');
+        statusText.textContent = 'Processor: Running';
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-block';
+    } else {
+        indicator.classList.remove('active');
+        indicator.classList.add('inactive');
+        statusText.textContent = 'Processor: Stopped';
+        startBtn.style.display = 'inline-block';
+        stopBtn.style.display = 'none';
+    }
+}
+
+// Check processor status periodically
+async function checkProcessorStatus() {
+    try {
+        const response = await fetch('/api/incept/processor');
+        const data = await response.json();
+        updateProcessorUI(data.running);
+    } catch (err) {
+        console.error('Failed to check processor status:', err);
+    }
+}
+
+// Check status every 10 seconds
+setInterval(checkProcessorStatus, 10000);
+
+// Git status functions
+async function loadGitStatus() {
+    try {
+        const response = await fetch('/api/incept/git/status');
+        const data = await response.json();
+
+        if (data.error) {
+            document.getElementById('git-status-content').innerHTML =
+                `<div class="git-error">Error: ${data.error}</div>`;
+            document.getElementById('quick-msg').textContent = 'Error loading';
+            return;
+        }
+
+        // Update compact top bar
+        updateQuickStatus(data);
+
+        const content = document.getElementById('git-status-content');
+        const actions = document.getElementById('git-actions');
+
+        let html = '<div class="git-branch">';
+        html += `<span>Branch:</span> <span class="git-branch-name">${data.branch || 'unknown'}</span>`;
+
+        if (data.clean) {
+            html += '<span class="git-clean-badge">Clean</span>';
+        } else {
+            html += '<span class="git-changes-badge">Has Changes</span>';
+        }
+
+        if (data.ahead_behind === 'ahead') {
+            html += '<span class="git-ahead-badge">Ahead of remote</span>';
+        } else if (data.ahead_behind === 'behind') {
+            html += '<span class="git-ahead-badge">Behind remote</span>';
+        }
+
+        // Show unpushed improvements count
+        if (data.unpushed_improvements > 0) {
+            html += `<span class="git-ahead-badge" style="background: #8b5cf6;">${data.unpushed_improvements} unpushed improvement(s)</span>`;
+        }
+
+        html += '</div>';
+
+        // Show latest commit info
+        if (data.latest_commit) {
+            html += '<div class="git-latest-commit">';
+            html += `<div><span style="color: var(--text-muted);">Latest commit:</span> <span class="git-commit-hash">${data.latest_commit.hash}</span></div>`;
+            html += `<div style="margin-top: 4px;">${data.latest_commit.message}</div>`;
+            html += `<div class="git-commit-info">by ${data.latest_commit.author} • ${data.latest_commit.time}</div>`;
+            html += '</div>';
+        }
+
+        if (data.has_changes) {
+            html += '<div class="git-files">';
+
+            if (data.staged && data.staged.length > 0) {
+                html += '<div class="git-file-group">';
+                html += '<div class="git-file-group-title">Staged (' + data.staged.length + ')</div>';
+                data.staged.forEach(file => {
+                    html += `<div class="git-file staged">${file}</div>`;
+                });
+                html += '</div>';
+            }
+
+            if (data.modified && data.modified.length > 0) {
+                html += '<div class="git-file-group">';
+                html += '<div class="git-file-group-title">Modified (' + data.modified.length + ')</div>';
+                data.modified.forEach(file => {
+                    html += `<div class="git-file modified">${file}</div>`;
+                });
+                html += '</div>';
+            }
+
+            if (data.untracked && data.untracked.length > 0) {
+                html += '<div class="git-file-group">';
+                html += '<div class="git-file-group-title">Untracked (' + data.untracked.length + ')</div>';
+                data.untracked.forEach(file => {
+                    html += `<div class="git-file untracked">${file}</div>`;
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+            actions.style.display = 'flex';
+        } else {
+            actions.style.display = 'none';
+        }
+
+        content.innerHTML = html;
+
+        // Load detailed commit history
+        loadDetailedCommits();
+    } catch (err) {
+        console.error('Failed to load git status:', err);
+        document.getElementById('git-status-content').innerHTML =
+            `<div class="git-error">Failed to load git status: ${err.message}</div>`;
+        document.getElementById('quick-msg').textContent = 'Error';
+    }
+}
+
+// Update the compact status bar at top
+function updateQuickStatus(data) {
+    // Branch
+    document.getElementById('quick-branch').textContent = data.branch || 'unknown';
+
+    // Latest commit
+    if (data.latest_commit) {
+        document.getElementById('quick-hash').textContent = data.latest_commit.hash;
+        document.getElementById('quick-msg').textContent = data.latest_commit.message;
+        document.getElementById('quick-time').textContent = data.latest_commit.time;
+    }
+
+    // Badges
+    let badgesHtml = '';
+    if (data.clean) {
+        badgesHtml += '<span class="git-quick-badge clean">Clean</span>';
+    } else {
+        const changeCount = (data.modified?.length || 0) + (data.untracked?.length || 0) + (data.staged?.length || 0);
+        badgesHtml += `<span class="git-quick-badge changes">${changeCount} changes</span>`;
+    }
+
+    if (data.unpushed_improvements > 0) {
+        badgesHtml += `<span class="git-quick-badge unpushed">${data.unpushed_improvements} to push</span>`;
+    }
+
+    document.getElementById('quick-badges').innerHTML = badgesHtml;
+
+    // Show/hide push button
+    const pushBtn = document.getElementById('quick-push-btn');
+    if (data.has_changes || data.unpushed_improvements > 0) {
+        pushBtn.style.display = 'flex';
+    } else {
+        pushBtn.style.display = 'none';
+    }
+}
+
+// Load detailed commit history
+async function loadDetailedCommits() {
+    try {
+        const response = await fetch('/api/incept/git/commits');
+        const data = await response.json();
+
+        const container = document.getElementById('detailed-commits-list');
+
+        if (data.error) {
+            container.innerHTML = `<div class="git-error">${data.error}</div>`;
+            return;
+        }
+
+        if (!data.commits || data.commits.length === 0) {
+            container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No commits found</div>';
+            return;
+        }
+
+        let html = '';
+        data.commits.forEach(commit => {
+            html += '<div class="git-detailed-commit">';
+            html += '<div class="git-detailed-commit-header">';
+            html += `<span class="git-detailed-commit-hash">${commit.hash}</span>`;
+            html += `<span class="git-detailed-commit-time">${commit.date}</span>`;
+            html += `<span class="git-detailed-commit-author">${commit.author}</span>`;
+            html += '</div>';
+            html += `<div class="git-detailed-commit-msg">${commit.message}</div>`;
+            if (commit.files_changed || commit.insertions || commit.deletions) {
+                html += '<div class="git-detailed-commit-files">';
+                if (commit.files_changed) {
+                    html += `<span>${commit.files_changed} file(s)</span>`;
+                }
+                if (commit.insertions) {
+                    html += `<span class="additions">+${commit.insertions}</span>`;
+                }
+                if (commit.deletions) {
+                    html += `<span class="deletions">-${commit.deletions}</span>`;
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+        });
+
+        container.innerHTML = html;
+    } catch (err) {
+        console.error('Failed to load detailed commits:', err);
+        document.getElementById('detailed-commits-list').innerHTML =
+            `<div class="git-error">Failed to load commits: ${err.message}</div>`;
+    }
+}
+
+async function pushToGit() {
+    const btn = document.getElementById('git-push-btn');
+    const originalText = btn.textContent;
+
+    const message = prompt('Enter commit message:', 'Auto-commit from Incept dashboard');
+    if (!message) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Pushing...';
+
+    try {
+        const response = await fetch('/api/incept/git/push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Changes committed and pushed successfully!');
+            await loadGitStatus();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to push'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+// Load git status on page load
+loadGitStatus();
+
+// Refresh git status every 30 seconds
+setInterval(loadGitStatus, 30000);
+
+// Load progress timelines for all requests
+async function loadProgressTimelines() {
+    const timelines = document.querySelectorAll('.progress-timeline');
+
+    for (const timeline of timelines) {
+        const reqId = timeline.dataset.reqId;
+        if (!reqId) continue;
+
+        try {
+            const response = await fetch(`/api/incept/request/${reqId}/logs`);
+            const data = await response.json();
+
+            if (data.logs && data.logs.length > 0) {
+                let html = '<div class="progress-dots">';
+                let lastTimestamp = '';
+
+                data.logs.forEach((log, index) => {
+                    const time = log.timestamp ? log.timestamp.substring(11, 19) : '';
+                    const message = (log.message || '').substring(0, 50);
+                    const logType = log.log_type || 'info';
+
+                    html += `<div class="progress-dot ${logType}" title="${time} - ${message}"></div>`;
+
+                    // Add separator every 5 dots for readability
+                    if ((index + 1) % 5 === 0 && index < data.logs.length - 1) {
+                        html += '<div class="timeline-separator"></div>';
+                    }
+
+                    // Store the last timestamp
+                    if (log.timestamp) {
+                        lastTimestamp = time;
+                    }
+                });
+
+                // Add last update time after the dots
+                if (lastTimestamp) {
+                    html += `<span class="last-update-time">${lastTimestamp}</span>`;
+                }
+
+                html += '</div>';
+                timeline.innerHTML = html;
+            } else {
+                timeline.innerHTML = '';
+            }
+        } catch (err) {
+            console.error(`Failed to load timeline for request ${reqId}:`, err);
+            timeline.innerHTML = '';
+        }
+    }
+}
+
+// Load timelines on page load
+loadProgressTimelines();
+
+// Refresh timelines every 30 seconds for active requests
+setInterval(() => {
+    const hasActiveRequests = document.querySelector('.log-entry.processing, .log-entry.pending');
+    if (hasActiveRequests) {
+        loadProgressTimelines();
+    }
+}, 30000);
+</script>
+{% endblock %}

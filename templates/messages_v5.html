@@ -1,0 +1,427 @@
+{% extends "base_v5.html" %}
+
+{% block title %}Articles - TechNotes{% endblock %}
+
+{% block content %}
+<div class="page-header-compact">
+    <span class="page-title-sm">Articles</span>
+    <span class="page-meta">{{ stats.total }} posts</span>
+    <button class="mark-all-btn" onclick="markAllRead()">Mark all read</button>
+</div>
+
+<!-- Compact posts list -->
+<div class="posts-compact card">
+    {% set current_date = namespace(value='') %}
+    {% for msg in messages %}
+        {% set msg_date = msg.timestamp[:10] if msg.timestamp else '' %}
+        {% if msg_date != current_date.value %}
+            {% set current_date.value = msg_date %}
+            <div class="date-row">{{ msg_date }}</div>
+        {% endif %}
+
+        {% set display_name = 'Home Automation' if '1star' in (msg.sender_name or '') else (msg.sender_name.split()[0] if msg.sender_name else 'System') %}
+        {% set is_from_target = (msg.sender_name != my_name) %}
+        {% set is_unread = is_from_target and (msg.marked_read is none or msg.marked_read == 0) %}
+        {% set is_unseen = (not is_from_target) and (msg.seen_by_target is none or msg.seen_by_target == 0) %}
+        <div class="post-row {% if msg.deleted %}archived{% endif %} {% if is_unread %}unread{% endif %} {% if is_unseen %}unseen{% endif %}" data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}">
+            <span class="post-time-sm">{{ msg.timestamp[11:16] if msg.timestamp and msg.timestamp|length > 16 else '' }}</span>
+            <span class="post-ago-sm" data-ts="{{ msg.timestamp }}"></span>
+            <span class="post-author-sm {{ 'author-a' if msg.sender_name == my_name else 'author-b' }}">{{ display_name }}</span>
+            <span class="post-text">{{ msg.text }}{% if msg.media_type %} <i>[{{ msg.media_type }}]</i>{% endif %}{% if msg.deleted %} <s>archived</s>{% endif %}</span>
+            {% if msg.reactions %}<span class="reactions" data-reactions="{{ msg.reactions }}"></span>{% endif %}
+            {% if is_from_target %}{% if is_unread %}<span class="tick single" title="She sees: Delivered">✓</span><button class="mark-read-btn" onclick="markRead({{ msg.message_id }}, {{ msg.chat_id }}, this)" title="Send ✓✓">→✓✓</button>{% else %}<span class="tick double" title="She sees: Read">✓✓</span>{% endif %}{% endif %}
+            {% if is_unseen %}<span class="unseen-badge" title="Not seen by target yet">○</span>{% endif %}
+        </div>
+    {% else %}
+        <div class="empty-sm">No articles yet.</div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+<div class="pagination-sm">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}">&larr; Newer</a>{% endif %}
+    <span>{{ page }}</span>
+    {% if has_more %}<a href="?page={{ page + 1 }}">Older &rarr;</a>{% endif %}
+</div>
+
+<!-- Compact comment form -->
+<div class="comment-form card">
+    <form action="{{ url_for('send_message') }}" method="POST">
+        <input type="text" name="text" placeholder="Add comment..." required>
+        <button type="submit">Post</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .page-header-compact {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+        gap: 8px;
+    }
+
+    .mark-all-btn {
+        background: #f59e0b;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        padding: 5px 10px;
+        cursor: pointer;
+        font-weight: 500;
+        margin-left: auto;
+    }
+
+    .mark-all-btn:hover {
+        background: #d97706;
+    }
+
+    .mark-all-btn:disabled {
+        background: #9ca3af;
+        cursor: default;
+    }
+
+    .page-title-sm {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .page-meta {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .posts-compact {
+        padding: 0;
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .date-row {
+        background: var(--bg);
+        padding: 6px 12px;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border);
+        font-weight: 500;
+    }
+
+    .post-row {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: baseline;
+    }
+
+    .post-row:last-child {
+        border-bottom: none;
+    }
+
+    .post-row.archived {
+        opacity: 0.5;
+        background: #fef2f2;
+    }
+
+    /* Unread messages - highlighted with yellow/orange */
+    .post-row.unread {
+        background: #fef3c7;
+        border-left: 3px solid #f59e0b;
+    }
+
+    /* Tick indicators */
+    .tick {
+        font-size: 0.75rem;
+        margin-left: 4px;
+    }
+
+    .tick.single {
+        color: #f59e0b;
+    }
+
+    .tick.double {
+        color: #10b981;
+    }
+
+    .mark-read-btn {
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        padding: 2px 5px;
+        margin-left: 2px;
+        cursor: pointer;
+    }
+
+    .mark-read-btn:hover {
+        background: #059669;
+    }
+
+    .mark-read-btn.done {
+        background: #9ca3af;
+        cursor: default;
+    }
+
+    /* Unseen by target - messages I sent that they haven't read */
+    .post-row.unseen {
+        background: #dbeafe;
+        border-left: 3px solid #3b82f6;
+    }
+
+    .unseen-badge {
+        color: #3b82f6;
+        font-size: 0.7rem;
+        margin-left: auto;
+    }
+
+    .reactions {
+        background: #f3f4f6;
+        padding: 1px 5px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        margin-left: 4px;
+    }
+
+    .post-time-sm {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        min-width: 36px;
+    }
+
+    .post-ago-sm {
+        color: #9ca3af;
+        font-size: 0.7rem;
+        min-width: 40px;
+    }
+
+    .post-author-sm {
+        font-weight: 600;
+        font-size: 0.8rem;
+        min-width: 100px;
+    }
+
+    .author-a { color: var(--author-a); }
+    .author-b { color: var(--author-b); }
+
+    .post-text {
+        flex: 1;
+        color: var(--text);
+    }
+
+    .post-text i {
+        font-style: normal;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+    }
+
+    .post-text s {
+        color: #dc3545;
+        font-size: 0.7rem;
+        text-decoration: none;
+    }
+
+    .empty-sm {
+        padding: 30px;
+        text-align: center;
+        color: var(--text-muted);
+    }
+
+    .pagination-sm {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin: 12px 0;
+        font-size: 0.85rem;
+    }
+
+    .pagination-sm a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .pagination-sm span {
+        color: var(--text-muted);
+    }
+
+    .comment-form {
+        padding: 10px 12px;
+    }
+
+    .comment-form form {
+        display: flex;
+        gap: 8px;
+    }
+
+    .comment-form input {
+        flex: 1;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+
+    .comment-form input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .comment-form button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 8px 14px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+        .post-author-sm {
+            min-width: 70px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function formatTimeAgo(date) {
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+
+        if (minutes < 1) return '(now)';
+        if (minutes < 60) return `(${minutes}m)`;
+        if (hours < 24) return `(${hours}h)`;
+        return `(${days}d)`;
+    }
+
+    document.querySelectorAll('.post-ago-sm').forEach(el => {
+        const ts = el.dataset.ts;
+        if (!ts) return;
+        el.textContent = formatTimeAgo(new Date(ts));
+    });
+
+    // Parse and display reactions
+    document.querySelectorAll('.reactions').forEach(el => {
+        try {
+            const reactions = JSON.parse(el.dataset.reactions);
+            if (reactions && reactions.length > 0) {
+                el.textContent = reactions.map(r => {
+                    if (r.emoji.startsWith('custom:')) {
+                        return '💫'; // Placeholder for custom emoji
+                    }
+                    return r.count > 1 ? `${r.emoji}${r.count}` : r.emoji;
+                }).join(' ');
+            }
+        } catch (e) {
+            el.remove();
+        }
+    });
+
+    // Save input before refresh
+    const inputField = document.querySelector('.comment-form input[name="text"]');
+    if (inputField) {
+        // Restore saved value
+        const saved = localStorage.getItem('draft_message_v5');
+        if (saved) inputField.value = saved;
+
+        // Save on input
+        inputField.addEventListener('input', () => {
+            localStorage.setItem('draft_message_v5', inputField.value);
+        });
+
+        // Clear on submit
+        inputField.closest('form').addEventListener('submit', () => {
+            localStorage.removeItem('draft_message_v5');
+        });
+    }
+
+    // Auto-refresh
+    setTimeout(() => location.reload(), 60000);
+
+    // Mark message as read
+    function markRead(messageId, chatId, btn) {
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        fetch('/api/mark-read', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message_id: messageId, chat_id: chatId})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const row = btn.closest('.post-row');
+                if (row) {
+                    row.classList.remove('unread');
+                    // Change single tick to double tick
+                    const singleTick = row.querySelector('.tick.single');
+                    if (singleTick) {
+                        singleTick.className = 'tick double';
+                        singleTick.textContent = '✓✓';
+                        singleTick.title = 'She sees: Read';
+                    }
+                }
+                btn.remove();
+            } else {
+                btn.textContent = '✗';
+            }
+        })
+        .catch(() => {
+            btn.textContent = '✗';
+            btn.disabled = false;
+        });
+    }
+
+    // Mark all messages as read
+    function markAllRead() {
+        const btn = document.querySelector('.mark-all-btn');
+        btn.disabled = true;
+        btn.textContent = 'Sending ✓✓...';
+
+        fetch('/api/mark-all-read', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                btn.textContent = 'All ✓✓';
+                // Update all unread messages
+                document.querySelectorAll('.post-row.unread').forEach(el => {
+                    el.classList.remove('unread');
+                    // Change single tick to double
+                    const singleTick = el.querySelector('.tick.single');
+                    if (singleTick) {
+                        singleTick.className = 'tick double';
+                        singleTick.textContent = '✓✓';
+                        singleTick.title = 'She sees: Read';
+                    }
+                    // Remove mark-read button
+                    const readBtn = el.querySelector('.mark-read-btn');
+                    if (readBtn) readBtn.remove();
+                });
+            } else {
+                btn.textContent = 'Error';
+                btn.disabled = false;
+            }
+        })
+        .catch(() => {
+            btn.textContent = 'Error';
+            btn.disabled = false;
+        });
+    }
+</script>
+{% endblock %}

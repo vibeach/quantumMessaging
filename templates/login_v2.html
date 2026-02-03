@@ -1,0 +1,167 @@
+{% extends "base_v2.html" %}
+
+{% block title %}Login - Telegram Monitor{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-icon">
+                <i class="bi bi-telegram"></i>
+            </div>
+            <h1>Telegram Monitor</h1>
+            <p>Enter your password to continue</p>
+        </div>
+
+        {% if error %}
+        <div class="error-alert">
+            <i class="bi bi-exclamation-circle"></i>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" class="login-form">
+            <div class="input-group">
+                <i class="bi bi-lock"></i>
+                <input type="password"
+                       name="password"
+                       placeholder="Password"
+                       autofocus
+                       required>
+            </div>
+            <button type="submit" class="login-btn">
+                <span>Login</span>
+                <i class="bi bi-arrow-right"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        margin-top: -80px;
+    }
+
+    .login-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 40px;
+        width: 100%;
+        max-width: 380px;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .login-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 2rem;
+        color: white;
+    }
+
+    .login-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0 0 8px;
+    }
+
+    .login-header p {
+        color: var(--text-secondary);
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .error-alert {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: var(--accent-red);
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .login-form .input-group {
+        position: relative;
+        margin-bottom: 16px;
+    }
+
+    .login-form .input-group i {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: 1.1rem;
+    }
+
+    .login-form input {
+        width: 100%;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px 16px 16px 48px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+
+    .login-form input:focus {
+        outline: none;
+        border-color: var(--accent-blue);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .login-form input::placeholder {
+        color: var(--text-muted);
+    }
+
+    .login-btn {
+        width: 100%;
+        background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+        border: none;
+        border-radius: 12px;
+        padding: 16px;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+    }
+
+    .login-btn:active {
+        transform: translateY(0);
+    }
+
+    .refresh-indicator {
+        display: none;
+    }
+</style>
+{% endblock %}

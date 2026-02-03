@@ -1,0 +1,25 @@
+{
+  "name": "Home Assistant",
+  "short_name": "Home Assistant",
+  "description": "Home Assistant Automation Dashboard",
+  "start_url": "/messages",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/static/ha-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [],
+  "shortcuts": [],
+  "share_target": null,
+  "prefer_related_applications": false,
+  "related_applications": []
+}

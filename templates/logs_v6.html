@@ -1,0 +1,288 @@
+{% extends "base_v6.html" %}
+
+{% block title %}System Log{% endblock %}
+
+{% block content %}
+<!-- Smart Home Widget (decoy) - click lightbulb or button to toggle modes -->
+<div class="smart-widget card" id="mode-toggle">
+    <div class="widget-header">
+        <span class="widget-icon" onclick="toggleMode()" style="cursor:pointer">💡</span>
+        <span class="widget-title">Living Room Lights</span>
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+        <button class="widget-toggle on" id="mode-btn" onclick="toggleMode()">ON</button>
+    </div>
+</div>
+
+<!-- Real content (hidden when mode is OFF) -->
+<div id="real-content">
+<!-- Top bar with filters and refresh -->
+<div class="top-bar card">
+    <div class="refresh-row">
+        <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
+        <span class="refresh-time">{{ last_refresh }}</span>
+    </div>
+    <div class="filter-row">
+        <select id="category-filter" onchange="applyFilters()">
+            <option value="">All Categories</option>
+            <option value="media" {% if filter_category == 'media' %}selected{% endif %}>Media</option>
+            <option value="message" {% if filter_category == 'message' %}selected{% endif %}>Message</option>
+            <option value="status" {% if filter_category == 'status' %}selected{% endif %}>Status</option>
+            <option value="ai" {% if filter_category == 'ai' %}selected{% endif %}>AI</option>
+            <option value="claude" {% if filter_category == 'claude' %}selected{% endif %}>Claude</option>
+            <option value="sync" {% if filter_category == 'sync' %}selected{% endif %}>Sync</option>
+            <option value="auth" {% if filter_category == 'auth' %}selected{% endif %}>Auth</option>
+            <option value="error" {% if filter_category == 'error' %}selected{% endif %}>Error</option>
+        </select>
+        <select id="status-filter" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="info" {% if filter_status == 'info' %}selected{% endif %}>Info</option>
+            <option value="success" {% if filter_status == 'success' %}selected{% endif %}>Success</option>
+            <option value="warning" {% if filter_status == 'warning' %}selected{% endif %}>Warning</option>
+            <option value="error" {% if filter_status == 'error' %}selected{% endif %}>Error</option>
+            <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="progress" {% if filter_status == 'progress' %}selected{% endif %}>Progress</option>
+        </select>
+        <button class="clear-logs-btn" onclick="clearOldLogs()">Clear Old Log</button>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-container card">
+    <div class="stat-item">
+        <div class="stat-label">Total Log</div>
+        <div class="stat-value">{{ stats.total }}</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-label">Errors</div>
+        <div class="stat-value error">{{ stats.by_status.get('error', 0) }}</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-label">Warnings</div>
+        <div class="stat-value warning">{{ stats.by_status.get('warning', 0) }}</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-label">Success</div>
+        <div class="stat-value success">{{ stats.by_status.get('success', 0) }}</div>
+    </div>
+</div>
+
+<!-- Logs -->
+<div class="logs-container card">
+    {% if logs %}
+    <div class="log-list">
+        {% for log in logs %}
+        <div class="log-entry {{ log.status }}">
+            <div class="log-header">
+                <span class="log-icon">{{ '✅' if log.status == 'success' else '❌' if log.status == 'error' else '⚠️' if log.status == 'warning' else 'ℹ️' if log.status == 'info' else '⏳' if log.status == 'pending' else '▶️' }}</span>
+                <span class="log-category">{{ log.category }}</span>
+                <span class="log-action">{{ log.action }}</span>
+                <span class="log-time">{{ log.timestamp[11:19] if log.timestamp and log.timestamp|length > 19 else log.timestamp }}</span>
+            </div>
+            <div class="log-message">{{ log.message }}</div>
+            {% if log.details %}
+            <div class="log-details">{{ log.details }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">No log found</div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}{% if filter_category %}&category={{ filter_category }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">&larr;</a>{% endif %}
+    <span class="page-num">{{ page }}</span>
+    {% if has_more %}<a href="?page={{ page + 1 }}{% if filter_category %}&category={{ filter_category }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}">&rarr;</a>{% endif %}
+</div>
+</div>
+
+<!-- Fake content (shown when mode is OFF) - Home Assistant Tutorials -->
+<div id="fake-content" style="display:none">
+<div class="top-bar card">
+    <div class="refresh-row">
+        <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
+        <span class="refresh-time">{{ last_refresh }}</span>
+    </div>
+</div>
+<div class="tutorial-container card">
+    <h2>Home Assistant Tutorials</h2>
+    <div class="tutorial-list">
+        <div class="tutorial-item">
+            <h3>Setting up Smart Bulbs</h3>
+            <p>Learn how to configure Philips Hue and other smart bulbs in Home Assistant.</p>
+        </div>
+        <div class="tutorial-item">
+            <h3>Automations 101</h3>
+            <p>Create your first automation to control lights based on motion sensors.</p>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar { padding: 8px; margin-bottom: 8px; }
+    .refresh-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 10px; color: var(--text-muted); }
+    .refresh-btn-nice { background: var(--accent); color: white; border: none; width: 26px; height: 26px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+    .refresh-btn-nice:hover { transform: rotate(180deg); background: #1d4ed8; }
+    .refresh-time { flex: 1; }
+
+    .filter-row { display: flex; gap: 8px; align-items: center; }
+    .filter-row select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--card-bg); color: var(--text); font-size: 12px; cursor: pointer; }
+    .filter-row select:focus { outline: none; border-color: var(--accent); }
+    .clear-logs-btn { padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
+    .clear-logs-btn:hover { background: #dc2626; }
+
+    .stats-container { padding: 12px; margin-bottom: 8px; display: flex; gap: 16px; }
+    .stat-item { flex: 1; }
+    .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+    .stat-value { font-size: 20px; font-weight: 600; }
+    .stat-value.error { color: #ef4444; }
+    .stat-value.warning { color: #f59e0b; }
+    .stat-value.success { color: #10b981; }
+
+    .logs-container { padding: 12px; }
+    .log-list { display: flex; flex-direction: column; gap: 8px; }
+    .log-entry { padding: 10px; border-radius: 6px; border-left: 3px solid; transition: background 0.2s; }
+    .log-entry.info { background: #eff6ff; border-left-color: #3b82f6; }
+    .log-entry.success { background: #f0fdf4; border-left-color: #10b981; }
+    .log-entry.warning { background: #fef3c7; border-left-color: #f59e0b; }
+    .log-entry.error { background: #fef2f2; border-left-color: #ef4444; }
+    .log-entry.pending { background: #f3f4f6; border-left-color: #9ca3af; }
+    .log-entry.progress { background: #ede9fe; border-left-color: #8b5cf6; }
+
+    [data-theme="dark"] .log-entry.info { background: #1e3a5f; }
+    [data-theme="dark"] .log-entry.success { background: #064e3b; }
+    [data-theme="dark"] .log-entry.warning { background: #78350f; }
+    [data-theme="dark"] .log-entry.error { background: #7f1d1d; }
+    [data-theme="dark"] .log-entry.pending { background: #1f2937; }
+    [data-theme="dark"] .log-entry.progress { background: #4c1d95; }
+
+    .log-entry:hover { opacity: 0.9; }
+    .log-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .log-icon { font-size: 14px; }
+    .log-category { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--accent); padding: 2px 6px; background: var(--bg); border-radius: 3px; }
+    .log-action { font-size: 11px; font-weight: 500; color: var(--text); }
+    .log-time { font-size: 10px; color: var(--text-muted); margin-left: auto; font-family: 'JetBrains Mono', monospace; }
+    .log-message { font-size: 12px; color: var(--text); margin-bottom: 4px; }
+    .log-details { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; background: var(--bg); padding: 6px; border-radius: 3px; margin-top: 6px; }
+
+    .empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 8px; font-size: 11px; }
+    .pagination a { color: var(--accent); text-decoration: none; }
+    .page-num { color: var(--text-muted); }
+
+    /* Smart Home Widget */
+    .smart-widget { padding: 10px 12px; margin-bottom: 8px; }
+    .widget-header { display: flex; align-items: center; gap: 10px; }
+    .widget-icon { font-size: 18px; }
+    .widget-title { flex: 1; font-weight: 600; font-size: 13px; }
+    .theme-toggle { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .theme-toggle:hover { background: var(--border); }
+    [data-theme="dark"] .theme-toggle { background: #374151; border-color: #4b5563; }
+    .widget-toggle { padding: 4px 12px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; cursor: pointer; }
+    .widget-toggle.on { background: #d1fae5; color: #047857; }
+    .widget-toggle.off { background: #f3f4f6; color: #6b7280; }
+    [data-theme="dark"] .widget-toggle.on { background: #065f46; color: #d1fae5; }
+    [data-theme="dark"] .widget-toggle.off { background: #374151; color: #9ca3af; }
+
+    /* Tutorial styles for fake content */
+    .tutorial-container { padding: 16px; }
+    .tutorial-container h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+    .tutorial-list { display: flex; flex-direction: column; gap: 12px; }
+    .tutorial-item { padding: 12px; background: var(--bg); border-radius: 6px; }
+    .tutorial-item h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .tutorial-item p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Mode toggle (decoy feature)
+    const MODE_KEY = 'mode';
+    let isOn = localStorage.getItem(MODE_KEY) !== 'off';
+
+    function updateMode() {
+        const btn = document.getElementById('mode-btn');
+        const realContent = document.getElementById('real-content');
+        const fakeContent = document.getElementById('fake-content');
+        if (isOn) {
+            btn.classList.remove('off');
+            btn.classList.add('on');
+            btn.textContent = 'ON';
+            realContent.style.display = 'block';
+            fakeContent.style.display = 'none';
+        } else {
+            btn.classList.remove('on');
+            btn.classList.add('off');
+            btn.textContent = 'OFF';
+            realContent.style.display = 'none';
+            fakeContent.style.display = 'block';
+        }
+    }
+
+    function toggleMode() {
+        isOn = !isOn;
+        localStorage.setItem(MODE_KEY, isOn ? 'on' : 'off');
+        updateMode();
+    }
+
+    updateMode();
+
+    // Dark mode toggle
+    const THEME_KEY = 'theme';
+    let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
+
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            const btn = document.getElementById('theme-btn');
+            if (btn) btn.textContent = '☀️';
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            const btn = document.getElementById('theme-btn');
+            if (btn) btn.textContent = '🌙';
+        }
+    }
+
+    function toggleTheme() {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(THEME_KEY, currentTheme);
+        applyTheme(currentTheme);
+    }
+
+    applyTheme(currentTheme);
+
+    // Filter functions
+    function applyFilters() {
+        const category = document.getElementById('category-filter').value;
+        const status = document.getElementById('status-filter').value;
+        let url = '/logs?page=1';
+        if (category) url += '&category=' + category;
+        if (status) url += '&status=' + status;
+        window.location.href = url;
+    }
+
+    function clearOldLogs() {
+        if (!confirm('Clear log older than 30 days?')) return;
+        fetch('/api/logs/clear', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({days: 30})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Cleared ${data.deleted} old log entries`);
+                location.reload();
+            } else {
+                alert('Failed to clear log');
+            }
+        })
+        .catch(e => alert('Error: ' + e));
+    }
+</script>
+{% endblock %}

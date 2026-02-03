@@ -1,0 +1,525 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Home - Dashboard{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Dynamic page background based on unread message status */
+    /* Black: all read, Yellow: her message unread, Blue: my message unread */
+    body.status-all-read {
+        background-color: #1a1a1a !important;
+    }
+    body.status-her-unread {
+        background-color: #92400e !important;
+    }
+    body.status-my-unread {
+        background-color: #1e3a8a !important;
+    }
+    /* If both have unread, prioritize her unread (yellow) */
+    body.status-both-unread {
+        background-color: #92400e !important;
+    }
+
+    .home-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .overview-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        transition: transform 0.15s, box-shadow 0.15s;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .overview-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: var(--accent);
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .card-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text);
+    }
+
+    .card-icon {
+        width: 20px;
+        height: 20px;
+        color: var(--text-muted);
+    }
+
+    .card-stat {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: var(--accent);
+        line-height: 1.2;
+    }
+
+    .card-stat.small {
+        font-size: 1.2rem;
+    }
+
+    .card-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .card-row {
+        display: flex;
+        gap: 16px;
+        margin-top: 8px;
+    }
+
+    .card-row-item {
+        flex: 1;
+    }
+
+    .card-row-item .stat-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .card-row-item .stat-label {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+    }
+
+    .status-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+    }
+
+    .status-online { background: #10b981; }
+    .status-offline { background: #6b7280; }
+    .status-processing { background: #f59e0b; animation: pulse 1.5s infinite; }
+    .status-error { background: #ef4444; }
+    .status-connected { background: #10b981; }
+    .status-disconnected { background: #ef4444; }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 20px 0 12px 0;
+    }
+
+    .section-title:first-of-type {
+        margin-top: 0;
+    }
+
+    .quick-stats {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 16px;
+        margin-bottom: 16px;
+    }
+
+    .quick-stats-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .quick-stat {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .quick-stat-value {
+        font-size: 1.3rem;
+        font-weight: 600;
+    }
+
+    .quick-stat-arrow {
+        font-size: 0.9rem;
+    }
+
+    .quick-stat-icon {
+        font-size: 0.9rem;
+        opacity: 0.7;
+    }
+
+    .stat-blue { color: #3b82f6; }
+    .stat-white { color: var(--text); }
+    .stat-yellow { color: #f59e0b; }
+    .stat-separator {
+        width: 1px;
+        height: 20px;
+        background: var(--border);
+    }
+
+    /* Message stats card - compact inline display */
+    .msg-stats-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .msg-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    .msg-stat-slash {
+        color: var(--text-muted);
+        font-weight: 400;
+    }
+    .time-ago {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .recent-list {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .recent-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .recent-item:last-child {
+        border-bottom: none;
+    }
+
+    .recent-item-content {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .recent-item-text {
+        font-size: 0.85rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .recent-item-meta {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .badge-processing { background: #dbeafe; color: #1d4ed8; }
+    .badge-completed { background: #d1fae5; color: #065f46; }
+    .badge-failed { background: #fee2e2; color: #991b1b; }
+
+    [data-theme="dark"] .badge-pending { background: #78350f; color: #fef3c7; }
+    [data-theme="dark"] .badge-processing { background: #1e3a8a; color: #dbeafe; }
+    [data-theme="dark"] .badge-completed { background: #064e3b; color: #d1fae5; }
+    [data-theme="dark"] .badge-failed { background: #7f1d1d; color: #fee2e2; }
+
+    .refresh-time {
+        text-align: center;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Quick Stats Bar -->
+<div class="quick-stats">
+    <div class="quick-stats-row">
+        <!-- Her unread messages (I didn't see) - white with down arrow -->
+        <div class="quick-stat">
+            <span class="quick-stat-value stat-white">{{ unseen_stats.her_unseen or 0 }}</span>
+            <span class="quick-stat-arrow stat-white">↓</span>
+        </div>
+        <!-- My unseen messages (she didn't see) - blue with up arrow -->
+        <div class="quick-stat">
+            <span class="quick-stat-value stat-blue">{{ unseen_stats.my_unseen or 0 }}</span>
+            <span class="quick-stat-arrow stat-blue">↑</span>
+        </div>
+        <div class="stat-separator"></div>
+        <!-- Unseen media - clickable to media page -->
+        <a href="{{ url_for('medi') }}" class="quick-stat">
+            <span class="quick-stat-icon">🖼</span>
+            <span class="quick-stat-value stat-white">{{ unseen_stats.media_unseen_her or 0 }}</span>
+            <span class="quick-stat-arrow stat-white">↓</span>
+            <span class="quick-stat-value stat-blue">{{ unseen_stats.media_unseen_me or 0 }}</span>
+            <span class="quick-stat-arrow stat-blue">↑</span>
+        </a>
+        <div class="stat-separator"></div>
+        <!-- Incept queue - clickable to incept page -->
+        <a href="{{ url_for('incept_control') }}" class="quick-stat">
+            <span class="quick-stat-icon">⚡</span>
+            <span class="quick-stat-value stat-yellow">{{ incept_stats.pending or 0 }}</span>
+        </a>
+    </div>
+</div>
+
+<!-- Messages/Time card (no section title) -->
+<div class="home-grid">
+    <a href="{{ url_for('messages') }}" class="overview-card">
+        <div class="msg-stats-row">
+            <!-- Her: unread/today -->
+            <div class="msg-stat-item">
+                <span class="stat-white">{{ unseen_stats.her_unseen or 0 }}</span>
+                <span class="msg-stat-slash">/</span>
+                <span class="stat-white">{{ unseen_stats.her_today or 0 }}</span>
+                <span class="stat-white" style="font-size: 0.8rem;">↓</span>
+            </div>
+            <div class="stat-separator" style="height: 16px;"></div>
+            <!-- Me: unread/today -->
+            <div class="msg-stat-item">
+                <span class="stat-blue">{{ unseen_stats.my_unseen or 0 }}</span>
+                <span class="msg-stat-slash">/</span>
+                <span class="stat-blue">{{ unseen_stats.my_today or 0 }}</span>
+                <span class="stat-blue" style="font-size: 0.8rem;">↑</span>
+            </div>
+        </div>
+        <!-- Time since last message / unseen messages -->
+        <div class="msg-stats-row" style="margin-top: 10px;">
+            <div class="msg-stat-item">
+                {% if unseen_stats.her_unseen > 0 and unseen_stats.her_oldest_unseen_minutes is not none %}
+                    {# Multiple unseen messages - show time since oldest #}
+                    {% set minutes = unseen_stats.her_oldest_unseen_minutes %}
+                    {% if minutes < 5 %}
+                        <span class="time-ago" style="color: #22c55e;">{{ minutes }}m</span>
+                    {% elif minutes < 15 %}
+                        <span class="time-ago" style="color: #eab308;">{{ minutes }}m</span>
+                    {% elif minutes < 60 %}
+                        <span class="time-ago" style="color: #f97316;">{{ minutes }}m</span>
+                    {% else %}
+                        <span class="time-ago" style="color: #ef4444;">{{ minutes }}m</span>
+                    {% endif %}
+                {% elif unseen_stats.her_last_msg_minutes is not none %}
+                    {# No unseen - show time since last message #}
+                    <span class="time-ago stat-white">{{ unseen_stats.her_last_msg_minutes }}m</span>
+                {% else %}
+                    <span class="time-ago stat-white">--</span>
+                {% endif %}
+                <span class="stat-white" style="font-size: 0.8rem;">↓</span>
+            </div>
+            <div class="stat-separator" style="height: 16px;"></div>
+            <div class="msg-stat-item">
+                {% if unseen_stats.my_unseen > 0 and unseen_stats.my_oldest_unseen_minutes is not none %}
+                    {# Multiple unseen messages - show time since oldest #}
+                    {% set minutes = unseen_stats.my_oldest_unseen_minutes %}
+                    {% if minutes < 5 %}
+                        <span class="time-ago" style="color: #22c55e;">{{ minutes }}m</span>
+                    {% elif minutes < 15 %}
+                        <span class="time-ago" style="color: #eab308;">{{ minutes }}m</span>
+                    {% elif minutes < 60 %}
+                        <span class="time-ago" style="color: #f97316;">{{ minutes }}m</span>
+                    {% else %}
+                        <span class="time-ago" style="color: #ef4444;">{{ minutes }}m</span>
+                    {% endif %}
+                {% elif unseen_stats.my_last_msg_minutes is not none %}
+                    {# No unseen - show time since last message #}
+                    <span class="time-ago stat-blue">{{ unseen_stats.my_last_msg_minutes }}m</span>
+                {% else %}
+                    <span class="time-ago stat-blue">--</span>
+                {% endif %}
+                <span class="stat-blue" style="font-size: 0.8rem;">↑</span>
+            </div>
+        </div>
+    </a>
+</div>
+
+<div class="section-title">AI & Automation</div>
+<div class="home-grid">
+    <!-- Incept Card -->
+    <a href="{{ url_for('incept_control') }}" class="overview-card">
+        <div class="card-header">
+            <span class="card-title">Incept</span>
+            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <span class="status-indicator status-{{ 'processing' if processor_running else 'offline' }}"></span>
+            <span class="card-stat small">{{ 'Running' if processor_running else 'Idle' }}</span>
+        </div>
+        <div class="card-label">{{ incept_stats.pending or 0 }} pending, {{ incept_stats.processing or 0 }} processing</div>
+    </a>
+
+    <!-- Incept+ Card -->
+    <a href="{{ url_for('incept_plus') }}" class="overview-card">
+        <div class="card-header">
+            <span class="card-title">Incept+</span>
+            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+        </div>
+        <div class="card-stat">{{ incept_plus_stats.pending or 0 }}</div>
+        <div class="card-label">suggestions pending</div>
+    </a>
+
+    <!-- AI Assistant Card -->
+    <a href="{{ url_for('ai_assistant') }}" class="overview-card">
+        <div class="card-header">
+            <span class="card-title">AI</span>
+            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+            </svg>
+        </div>
+        <div class="card-stat">{{ ai_stats.pending_suggestions or 0 }}</div>
+        <div class="card-label">pending suggestions</div>
+    </a>
+</div>
+
+<div class="section-title">System</div>
+<div class="home-grid">
+    <!-- Lab Card -->
+    <a href="{{ url_for('lab') }}" class="overview-card">
+        <div class="card-header">
+            <span class="card-title">Lab</span>
+            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+            </svg>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <span class="status-indicator status-{{ 'connected' if lab_connected else 'disconnected' }}"></span>
+            <span class="card-stat small">{{ 'Connected' if lab_connected else 'Disconnected' }}</span>
+        </div>
+        <div class="card-label">Control Room</div>
+    </a>
+
+    <!-- Render Card -->
+    <a href="{{ url_for('render_status') }}" class="overview-card">
+        <div class="card-header">
+            <span class="card-title">Render</span>
+            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
+            </svg>
+        </div>
+        {% if render_status %}
+        <div class="card-stat small">{{ render_status.status or 'Unknown' }}</div>
+        <div class="card-label">{{ render_status.last_deploy or 'No recent deploys' }}</div>
+        {% else %}
+        <div class="card-stat small">--</div>
+        <div class="card-label">Not configured</div>
+        {% endif %}
+    </a>
+
+    <!-- Logs Card -->
+    <a href="{{ url_for('system_logs') }}" class="overview-card">
+        <div class="card-header">
+            <span class="card-title">Logs</span>
+            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+        </div>
+        <div class="card-row">
+            <div class="card-row-item">
+                <div class="stat-value">{{ log_stats.total or 0 }}</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="card-row-item">
+                <div class="stat-value" style="color: #ef4444;">{{ log_stats.errors or 0 }}</div>
+                <div class="stat-label">Errors</div>
+            </div>
+            <div class="card-row-item">
+                <div class="stat-value" style="color: #f59e0b;">{{ log_stats.warnings or 0 }}</div>
+                <div class="stat-label">Warnings</div>
+            </div>
+        </div>
+    </a>
+
+    <!-- Config Card -->
+    <a href="{{ url_for('config_editor') }}" class="overview-card">
+        <div class="card-header">
+            <span class="card-title">Config</span>
+            <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+        </div>
+        <div class="card-stat small">Settings</div>
+        <div class="card-label">Dynamic configuration</div>
+    </a>
+</div>
+
+{% if recent_incept_requests %}
+<div class="section-title">Recent Incept Requests</div>
+<div class="recent-list">
+    {% for req in recent_incept_requests[:5] %}
+    <a href="{{ url_for('incept_detail', req_id=req.id) }}" class="recent-item" style="text-decoration: none; color: inherit;">
+        <div class="recent-item-content">
+            <div class="recent-item-text">{{ req.text[:60] if req.text else '' }}{% if req.text and req.text|length > 60 %}...{% endif %}</div>
+            <div class="recent-item-meta">{{ req.created_at[:16] if req.created_at else '' }}</div>
+        </div>
+        <span class="badge badge-{{ req.status }}">{{ req.status }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="refresh-time">Last refreshed: {{ last_refresh }}</div>
+
+<script>
+// Set body class based on unread message status
+document.addEventListener('DOMContentLoaded', function() {
+    const herUnread = {{ unseen_stats.her_unseen or 0 }};
+    const myUnread = {{ unseen_stats.my_unseen or 0 }};
+
+    // Remove any existing status classes
+    document.body.classList.remove('status-all-read', 'status-her-unread', 'status-my-unread', 'status-both-unread');
+
+    if (herUnread > 0 && myUnread > 0) {
+        // Both have unread - show yellow (her unread takes priority)
+        document.body.classList.add('status-both-unread');
+    } else if (herUnread > 0) {
+        // Her message unread - yellow
+        document.body.classList.add('status-her-unread');
+    } else if (myUnread > 0) {
+        // My message unread - blue
+        document.body.classList.add('status-my-unread');
+    } else {
+        // All read - black
+        document.body.classList.add('status-all-read');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1540 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Messages{% endblock %}
+
+{% block content %}
+<!-- Smart Home Widget (decoy) - click lightbulb or button to toggle modes -->
+<div class="smart-widget card" id="mode-toggle">
+    <div class="widget-header">
+        <span class="widget-icon" onclick="toggleMode()" style="cursor:pointer">💡</span>
+        <span class="widget-title">Living Room Lights</span>
+        <button class="order-toggle" id="order-btn" onclick="toggleOrder()" title="Toggle message order within hour">↑↓</button>
+        <div class="text-size-wrapper" style="margin-left: 4px;">
+            <button class="text-size-btn" onclick="toggleTextSizeMenu()" title="Text size">Aa</button>
+            <div class="text-size-menu" id="text-size-menu">
+                <button onclick="changeTextSize(1)">+</button>
+                <button onclick="changeTextSize(-1)">−</button>
+                <input type="number" id="text-size-input" min="6" max="20" value="10" onchange="setTextSize(this.value)">
+                <button onclick="resetTextSize()">↺</button>
+            </div>
+        </div>
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+        <button class="widget-toggle on" id="mode-btn" onclick="toggleMode()">ON</button>
+    </div>
+</div>
+
+<!-- Real content (hidden when mode is OFF) -->
+<div id="real-content">
+<!-- Top bar with send form and refresh info -->
+<div class="top-bar card">
+    <div class="refresh-row">
+        <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
+        <button class="media-btn-nice" onclick="document.getElementById('photo-input').click()" title="Photo">📷</button>
+        <button class="media-btn-nice" onclick="document.getElementById('video-input').click()" title="Video">🎬</button>
+        <button class="media-btn-nice circle-btn-nice" onclick="document.getElementById('circle-input').click()" title="Video circle">⚫</button>
+        <button class="media-btn-nice" id="notif-btn" onclick="enableNotifications()" title="Enable notifications">🔔</button>
+        <button class="media-btn-nice" id="badge-btn" onclick="toggleBadge()" title="Toggle badge count">🔴</button>
+        <button class="media-btn-nice schedule-btn" id="schedule-btn" onclick="toggleScheduleMenu()" title="Schedule message">⏰</button>
+        <div class="schedule-menu" id="schedule-menu">
+            <div class="schedule-option" onclick="setSchedule(0)">Send now</div>
+            <div class="schedule-option" onclick="setSchedule(5)">In 5 min</div>
+            <div class="schedule-option" onclick="setSchedule(15)">In 15 min</div>
+            <div class="schedule-option" onclick="setSchedule(30)">In 30 min</div>
+            <div class="schedule-option" onclick="setSchedule(60)">In 1 hour</div>
+            <div class="schedule-option" onclick="setScheduleCustom()">Custom...</div>
+        </div>
+        <span class="refresh-time">{{ last_refresh }}</span>
+        <button class="mark-all-btn" onclick="markAllRead()" title="Mark all read">✓✓</button>
+    </div>
+    <div class="top-actions">
+        <form class="send-form" id="send-form" onsubmit="return sendMessage(event)">
+            <div class="reply-indicator" id="reply-indicator" style="display:none">
+                <span class="reply-text" id="reply-text"></span>
+                <button type="button" class="reply-cancel" onclick="cancelReply()">✕</button>
+            </div>
+            <div class="schedule-indicator" id="schedule-indicator" style="display:none">
+                <span class="schedule-text" id="schedule-text"></span>
+                <button type="button" class="schedule-cancel" onclick="cancelSchedule()">✕</button>
+            </div>
+            <textarea name="text" placeholder="Query..." autocomplete="off" required rows="1" id="msg-input"></textarea>
+            <button type="submit" id="send-btn">Go</button>
+        </form>
+    </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="photo-input" accept="image/*" style="display:none" onchange="sendMedia(this, 'photo')">
+<input type="file" id="video-input" accept="video/*" style="display:none" onchange="sendMedia(this, 'video')">
+<input type="file" id="circle-input" accept="video/*" style="display:none" onchange="sendMedia(this, 'circle')">
+
+<!-- Upload progress overlay -->
+<div id="upload-progress-overlay" class="upload-overlay" style="display:none">
+    <div class="upload-modal">
+        <div class="upload-header">
+            <span class="upload-icon" id="upload-icon">📤</span>
+            <span class="upload-title" id="upload-title">Uploading...</span>
+        </div>
+        <div class="upload-filename" id="upload-filename"></div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="upload-status" id="upload-status">0%</div>
+        <button class="upload-cancel-btn" id="upload-cancel-btn" onclick="cancelUpload()">Cancel</button>
+    </div>
+</div>
+
+<!-- Messages -->
+<div class="messages-container card">
+    {% if messages %}
+    <div class="log-stream">
+        {% set current_hour = namespace(value='') %}
+        {% for msg in messages %}
+            {% set msg_hour = (msg.timestamp[:10] ~ ' ' ~ msg.timestamp[11:13] ~ ':00') if msg.timestamp and msg.timestamp|length > 13 else '' %}
+            {% if msg_hour != current_hour.value %}
+                {% set current_hour.value = msg_hour %}
+                <div class="hour-separator">{{ msg_hour }}</div>
+            {% endif %}
+            {% set is_lab_entry = msg.get('lab_entry', False) %}
+            {% set is_from_target = (msg.sender_name != my_name) %}
+            {% set is_unread = is_from_target and (msg.marked_read is none or msg.marked_read == 0) %}
+            {% set is_unseen = (not is_from_target) and (msg.seen_by_target is none or msg.seen_by_target == 0) %}
+            <span class="log-entry {% if msg.deleted %}deleted{% endif %} {% if is_unread %}unread{% endif %} {% if is_unseen %}unseen{% endif %} {% if is_lab_entry %}lab-entry{% endif %} {{ 'from-me' if msg.sender_name == my_name else 'from-them' }}" data-ts="{{ msg.timestamp }}" data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}" data-read-at="{{ msg.marked_read_at or '' }}" data-seen-at="{{ msg.seen_by_target_at or '' }}" data-deleted-at="{{ msg.deleted_at or '' }}" data-text="{{ msg.text[:50] | e }}"><span class="msg-time">[{{ msg.timestamp[11:16] if msg.timestamp and msg.timestamp|length > 16 else msg.timestamp }}]</span><span class="time-ago"></span> {{ msg.text }}{% if msg.media_type %} <i>[{{ msg.media_type }}]</i>{% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript }}</span>{% endif %}{% endif %}{% if msg.reactions %}<span class="reactions" data-reactions="{{ msg.reactions }}"></span>{% endif %}{% if msg.deleted %} <mark>x</mark><span class="deleted-time" data-deleted-at="{{ msg.deleted_at or '' }}"></span>{% endif %}{% if is_from_target and not is_lab_entry %}{% if is_unread %}<span class="tick single">✓</span><button class="mark-read-btn" onclick="markRead({{ msg.message_id }}, {{ msg.chat_id }}, this)">→✓✓</button>{% else %}<span class="tick double">✓✓</span><span class="read-time" data-read-at="{{ msg.marked_read_at or '' }}"></span>{% endif %}{% endif %}{% if not is_from_target and msg.seen_by_target and not is_lab_entry %}<span class="seen-time" data-seen-at="{{ msg.seen_by_target_at or '' }}"></span>{% endif %}{% if is_unseen and not is_lab_entry %}<span class="unseen-badge">○</span>{% endif %}{% if not is_lab_entry %}<button class="reply-btn" onclick="setReply({{ msg.message_id }}, '{{ msg.text[:30] | e | replace("'", "\\'") }}{% if msg.text|length > 30 %}...{% endif %}')" title="Reply">↩</button>{% endif %}</span>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">No data</div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}">&larr;</a>{% endif %}
+    <span class="page-num">{{ page }}</span>
+    {% if has_more %}<a href="?page={{ page + 1 }}">&rarr;</a>{% endif %}
+</div>
+
+<!-- History Unlock Button -->
+{% if not history_unlocked %}
+<div class="history-unlock-container">
+    <button class="history-unlock-btn" onclick="unlockHistory()" title="Unlock full history">⏱️</button>
+</div>
+{% else %}
+<div class="history-unlock-container">
+    <div class="history-unlocked-badge">✓ Full history unlocked</div>
+</div>
+{% endif %}
+</div>
+
+<!-- Fake content (shown when mode is OFF) - Home Assistant Tutorials -->
+<div id="fake-content" style="display:none">
+<div class="top-bar card">
+    <div class="refresh-row">
+        <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
+        <button class="media-btn-nice" title="Add device">📷</button>
+        <button class="media-btn-nice" title="Add scene">🎬</button>
+        <button class="media-btn-nice circle-btn-nice" title="Add routine">⚫</button>
+        <button class="media-btn-nice" id="notif-btn-fake" onclick="enableNotifications()" title="Enable notifications">🔔</button>
+        <button class="media-btn-nice" id="badge-btn-fake" onclick="toggleBadge()" title="Toggle badge count">🔴</button>
+        <button class="media-btn-nice schedule-btn" title="Schedule">⏰</button>
+        <span class="refresh-time">{{ last_refresh }}</span>
+        <button class="mark-all-btn" title="Sync all">✓✓</button>
+    </div>
+    <div class="top-actions">
+        <div class="send-form">
+            <textarea placeholder="Search automations..." autocomplete="off" rows="1"></textarea>
+            <button type="button">Go</button>
+        </div>
+    </div>
+</div>
+<div class="messages-container card">
+    <div class="log-stream">
+        <div class="hour-separator">2025-12-26 14:00 - Getting Started</div>
+        <span class="log-entry from-me">[14:05]<span class="time-ago">(2h)</span> Welcome to the Home Assistant automation tutorials! This guide will help you set up powerful automations for your smart home.</span>
+        <span class="log-entry from-them">[14:08]<span class="time-ago">(2h)</span> First, make sure you have Home Assistant installed and running. You can install it on a Raspberry Pi, NUC, or as a VM.<span class="tick double">✓✓</span><span class="read-time">(r2h)</span></span>
+        <span class="log-entry from-me">[14:12]<span class="time-ago">(2h)</span> The configuration.yaml file is the heart of Home Assistant. Let's start by understanding its structure.</span>
+        <span class="log-entry from-them">[14:15]<span class="time-ago">(2h)</span> Basic YAML syntax: use spaces (not tabs) for indentation. Each level uses 2 spaces. Lists start with a dash (-).<span class="tick double">✓✓</span><span class="read-time">(r2h)</span></span>
+
+        <div class="hour-separator">2025-12-26 13:00 - Automation Basics</div>
+        <span class="log-entry from-me">[13:02]<span class="time-ago">(3h)</span> Automations in Home Assistant consist of three parts: triggers, conditions, and actions.</span>
+        <span class="log-entry from-them">[13:05]<span class="time-ago">(3h)</span> Triggers: What starts the automation? Examples: time, state change, device trigger, sun position.<span class="tick double">✓✓</span><span class="read-time">(r3h)</span></span>
+        <span class="log-entry from-me">[13:10]<span class="time-ago">(3h)</span> Conditions: Optional checks before running. Only run if: someone is home, it's dark, AC is off, etc.</span>
+        <span class="log-entry from-them">[13:15]<span class="time-ago">(3h)</span> Actions: What happens when triggered. Turn on lights, send notification, call a script, etc.<span class="tick double">✓✓</span><span class="read-time">(r3h)</span></span>
+        <span class="log-entry from-me">[13:20]<span class="time-ago">(3h)</span> Example automation: Turn on porch light at sunset if someone is home.</span>
+        <span class="log-entry from-them">[13:25]<span class="time-ago">(3h)</span> automation: alias: "Porch Light at Sunset" trigger: platform: sun event: sunset condition: state entity_id: group.family state: "home" action: service: light.turn_on target: entity_id: light.porch<span class="tick double">✓✓</span><span class="read-time">(r3h)</span></span>
+
+        <div class="hour-separator">2025-12-26 12:00 - Motion-Activated Lights</div>
+        <span class="log-entry from-me">[12:05]<span class="time-ago">(4h)</span> Motion sensors are great for hands-free lighting control. Let's set up a motion-activated bathroom light.</span>
+        <span class="log-entry from-them">[12:10]<span class="time-ago">(4h)</span> First, add your motion sensor to Home Assistant. Most Zigbee/Z-Wave sensors auto-discover.<span class="tick double">✓✓</span><span class="read-time">(r4h)</span></span>
+        <span class="log-entry from-me">[12:15]<span class="time-ago">(4h)</span> Create two automations: one to turn ON when motion detected, one to turn OFF after no motion.</span>
+        <span class="log-entry from-them">[12:20]<span class="time-ago">(4h)</span> Tip: Use a timer or "for" condition to avoid flickering lights when motion stops briefly.<span class="tick double">✓✓</span><span class="read-time">(r4h)</span></span>
+        <span class="log-entry from-me">[12:25]<span class="time-ago">(4h)</span> Advanced: Use input_number to let users adjust the timeout from the dashboard.</span>
+
+        <div class="hour-separator">2025-12-26 11:00 - Climate Control</div>
+        <span class="log-entry from-me">[11:02]<span class="time-ago">(5h)</span> Smart thermostats can save energy by adjusting based on presence and schedules.</span>
+        <span class="log-entry from-them">[11:08]<span class="time-ago">(5h)</span> Generic thermostat: Create a virtual thermostat from a temp sensor + switch (like a space heater).<span class="tick double">✓✓</span><span class="read-time">(r5h)</span></span>
+        <span class="log-entry from-me">[11:15]<span class="time-ago">(5h)</span> climate: - platform: generic_thermostat name: Office Heater heater: switch.space_heater target_sensor: sensor.office_temp</span>
+        <span class="log-entry from-them">[11:22]<span class="time-ago">(5h)</span> Away mode: Lower temperature when everyone leaves, restore when someone arrives.<span class="tick double">✓✓</span><span class="read-time">(r5h)</span></span>
+        <span class="log-entry from-me">[11:30]<span class="time-ago">(5h)</span> Pro tip: Use device_tracker or person entities to track who's home accurately.</span>
+
+        <div class="hour-separator">2025-12-26 10:00 - Notifications</div>
+        <span class="log-entry from-me">[10:05]<span class="time-ago">(6h)</span> Notifications keep you informed about your smart home. Use mobile app, Telegram, email, or TTS.</span>
+        <span class="log-entry from-them">[10:12]<span class="time-ago">(6h)</span> Mobile app notifications: service: notify.mobile_app_your_phone data: message: "Motion detected!" title: "Security Alert"<span class="tick double">✓✓</span><span class="read-time">(r6h)</span></span>
+        <span class="log-entry from-me">[10:20]<span class="time-ago">(6h)</span> Actionable notifications: Add buttons to notifications that trigger actions when tapped.</span>
+        <span class="log-entry from-them">[10:28]<span class="time-ago">(6h)</span> Rate limiting: Use conditions to prevent notification spam. Example: only notify once per hour.<span class="tick double">✓✓</span><span class="read-time">(r6h)</span></span>
+        <span class="log-entry from-me">[10:35]<span class="time-ago">(6h)</span> Telegram bot: Great for two-way communication. Send commands to HA via Telegram!</span>
+
+        <div class="hour-separator">2025-12-26 09:00 - Advanced Topics</div>
+        <span class="log-entry from-me">[09:05]<span class="time-ago">(7h)</span> Templates: Use Jinja2 templates to create dynamic messages and conditions.</span>
+        <span class="log-entry from-them">[09:12]<span class="time-ago">(7h)</span> Example: "The temperature is {% raw %}{{ states('sensor.temp') }}{% endraw %} degrees"<span class="tick double">✓✓</span><span class="read-time">(r7h)</span></span>
+        <span class="log-entry from-me">[09:20]<span class="time-ago">(7h)</span> Scripts: Reusable sequences of actions. Call them from automations or manually.</span>
+        <span class="log-entry from-them">[09:28]<span class="time-ago">(7h)</span> Scenes: Save the state of multiple entities and restore them with one action.<span class="tick double">✓✓</span><span class="read-time">(r7h)</span></span>
+        <span class="log-entry from-me">[09:35]<span class="time-ago">(7h)</span> Blueprints: Share and import automation templates. Check the HA forum for community blueprints!</span>
+        <span class="log-entry from-them">[09:45]<span class="time-ago">(7h)</span> Node-RED: Visual automation tool that integrates with HA for complex flows.<span class="tick double">✓✓</span><span class="read-time">(r7h)</span></span>
+    </div>
+</div>
+<div class="pagination">
+    <span class="page-num">Page 1</span>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar { padding: 8px; margin-bottom: 8px; }
+    .refresh-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 10px; color: var(--text-muted); }
+    .refresh-btn-nice { background: var(--accent); color: white; border: none; width: 26px; height: 26px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+    .refresh-btn-nice:hover { transform: rotate(180deg); background: #1d4ed8; }
+    .refresh-time { flex: 1; }
+    .mark-all-btn { background: #f59e0b; color: white; border: none; width: 26px; height: 26px; border-radius: 50%; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .mark-all-btn:hover { background: #d97706; }
+    .mark-all-btn:disabled { background: #9ca3af; }
+    .text-size-wrapper { position: relative; display: inline-block; }
+    .text-size-btn { background: var(--bg); border: 1px solid var(--border); width: 26px; height: 26px; border-radius: 50%; font-size: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .text-size-btn:hover { background: var(--border); }
+    [data-theme="dark"] .text-size-btn { background: #374151; border-color: #4b5563; }
+    .text-size-menu { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px; margin-top: 4px; z-index: 100; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .text-size-menu.show { display: flex; gap: 4px; align-items: center; }
+    .text-size-menu button { background: var(--bg); border: 1px solid var(--border); width: 24px; height: 24px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .text-size-menu button:hover { background: var(--border); }
+    .text-size-menu input { width: 40px; height: 24px; border: 1px solid var(--border); border-radius: 4px; text-align: center; font-size: 10px; background: var(--bg); color: var(--text); }
+    [data-theme="dark"] .text-size-menu { background: #1f2937; border-color: #4b5563; }
+    [data-theme="dark"] .text-size-menu button { background: #374151; border-color: #4b5563; }
+    [data-theme="dark"] .text-size-menu input { background: #374151; border-color: #4b5563; }
+    .media-btn-nice { background: var(--bg); border: 1px solid var(--border); width: 26px; height: 26px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .media-btn-nice:hover { background: var(--border); }
+    .circle-btn-nice { background: #fef3c7; }
+    .circle-btn-nice:hover { background: #fde68a; }
+    [data-theme="dark"] .circle-btn-nice { background: #78350f; }
+    [data-theme="dark"] .circle-btn-nice:hover { background: #92400e; }
+
+    .top-actions { display: flex; gap: 4px; }
+    .send-form { display: flex; gap: 4px; flex: 1; align-items: flex-start; flex-wrap: wrap; }
+    .send-form textarea { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; font-family: inherit; background: var(--card-bg); color: var(--text); resize: none; overflow: hidden; min-height: 32px; max-height: 150px; line-height: 1.4; min-width: 150px; }
+    .send-form textarea:focus { outline: none; border-color: var(--accent); }
+    .send-form button[type="submit"] { background: var(--accent); color: white; border: none; padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; height: 32px; }
+    .send-form button[type="submit"]:hover { background: #1d4ed8; }
+
+    /* Reply indicator */
+    .reply-indicator { display: flex; align-items: center; gap: 6px; background: #e0f2fe; padding: 4px 8px; border-radius: 4px; font-size: 11px; color: #0369a1; width: 100%; margin-bottom: 4px; }
+    .reply-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .reply-cancel { background: none; border: none; font-size: 14px; cursor: pointer; color: #0369a1; padding: 0 4px; }
+    .reply-cancel:hover { color: #ef4444; }
+    [data-theme="dark"] .reply-indicator { background: #0c4a6e; color: #7dd3fc; }
+    [data-theme="dark"] .reply-cancel { color: #7dd3fc; }
+
+    /* Schedule indicator */
+    .schedule-indicator { display: flex; align-items: center; gap: 6px; background: #fef3c7; padding: 4px 8px; border-radius: 4px; font-size: 11px; color: #92400e; width: 100%; margin-bottom: 4px; }
+    .schedule-text { flex: 1; }
+    .schedule-cancel { background: none; border: none; font-size: 14px; cursor: pointer; color: #92400e; padding: 0 4px; }
+    .schedule-cancel:hover { color: #ef4444; }
+    [data-theme="dark"] .schedule-indicator { background: #78350f; color: #fef3c7; }
+    [data-theme="dark"] .schedule-cancel { color: #fef3c7; }
+
+    /* Schedule menu */
+    .schedule-btn { position: relative; }
+    .schedule-btn.active { background: #fef3c7; border-color: #f59e0b; }
+    .schedule-menu { display: none; position: absolute; top: 100%; left: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 0; margin-top: 4px; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 120px; }
+    .schedule-menu.show { display: block; }
+    .schedule-option { padding: 8px 12px; font-size: 12px; cursor: pointer; color: var(--text); }
+    .schedule-option:hover { background: var(--bg); }
+    [data-theme="dark"] .schedule-menu { background: #1f2937; border-color: #4b5563; }
+
+    /* Reply button on messages */
+    .reply-btn { background: none; border: none; font-size: 10px; cursor: pointer; color: var(--text-muted); padding: 0 2px; margin-left: 2px; opacity: 0.5; transition: opacity 0.2s; }
+    .reply-btn:hover { opacity: 1; color: var(--accent); }
+    .log-entry:hover .reply-btn { opacity: 0.8; }
+
+    .media-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 6px 10px; font-size: 14px; cursor: pointer; margin-left: 8px; }
+    .media-btn:hover { background: var(--border); }
+    .media-btn-sm { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 3px 6px; font-size: 11px; cursor: pointer; margin-left: 4px; }
+    .media-btn-sm:hover { background: var(--border); }
+    .media-btn-xs { background: var(--bg); border: 1px solid var(--border); border-radius: 2px; padding: 2px 4px; font-size: 9px; cursor: pointer; }
+    .media-btn-xs:hover { background: var(--border); }
+    .circle-btn { background: #fef3c7; }
+    .circle-btn:hover { background: #fde68a; }
+    .circle-btn-sm { background: #fef3c7; }
+    .circle-btn-sm:hover { background: #fde68a; }
+    .circle-btn-xs { background: #fef3c7; }
+    .circle-btn-xs:hover { background: #fde68a; }
+    [data-theme="dark"] .circle-btn { background: #78350f; }
+    [data-theme="dark"] .circle-btn:hover { background: #92400e; }
+    [data-theme="dark"] .circle-btn-sm { background: #78350f; }
+    [data-theme="dark"] .circle-btn-sm:hover { background: #92400e; }
+    [data-theme="dark"] .circle-btn-xs { background: #78350f; }
+    [data-theme="dark"] .circle-btn-xs:hover { background: #92400e; }
+
+    .messages-container { padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.5; background: var(--card-bg); }
+    [data-theme="dark"] .messages-container { background: var(--card-bg); }
+    .log-stream { word-wrap: break-word; }
+    .hour-separator { display: block; margin: 12px 0 8px 0; padding: 4px 0; border-bottom: 1px solid var(--border); font-weight: 500; color: var(--text); font-size: 9px; letter-spacing: 0.3px; }
+    .hour-separator:first-child { margin-top: 0; }
+
+    .log-entry { display: inline; }
+    .log-entry::after { content: " "; }
+
+    .from-me { color: #2563eb; }
+    .from-me.age-0 { color: #1d4ed8; font-weight: 500; }
+    .from-me.age-1 { color: #2563eb; }
+    .from-me.age-2 { color: #60a5fa; }
+    .from-me.age-3 { color: #93c5fd; }
+
+    .from-them { color: #1f1f1f; }
+    .from-them.age-0 { color: #000000; font-weight: 500; }
+    .from-them.age-1 { color: #1f1f1f; }
+    .from-them.age-2 { color: #525252; }
+    .from-them.age-3 { color: #737373; }
+
+    [data-theme="dark"] .from-them { color: #f5f5f5; }
+    [data-theme="dark"] .from-them.age-0 { color: #ffffff; font-weight: 500; }
+    [data-theme="dark"] .from-them.age-1 { color: #f5f5f5; }
+    [data-theme="dark"] .from-them.age-2 { color: #d4d4d4; }
+    [data-theme="dark"] .from-them.age-3 { color: #a3a3a3; }
+
+    .log-entry.deleted { text-decoration: line-through; opacity: 0.6; }
+    .log-entry.unread { background: #fef3c7; padding: 1px 2px; border-radius: 1px; border-left: 1px solid #f59e0b; }
+    .log-entry.unseen { background: #dbeafe; padding: 1px 2px; border-radius: 1px; border-left: 1px solid #3b82f6; }
+    .log-entry.lab-entry { color: #ec4899; font-style: italic; }
+
+    [data-theme="dark"] .log-entry.unread { background: #78350f; border-left-color: #f59e0b; }
+    [data-theme="dark"] .log-entry.unseen { background: #1e3a5f; border-left-color: #3b82f6; }
+    [data-theme="dark"] .log-entry.lab-entry { color: #f472b6; }
+
+    .msg-time { color: #9ca3af; font-size: 9px; }
+    .time-ago { color: #6b7280; font-size: 9px; }
+    .read-time, .seen-time { color: #10b981; font-size: 8px; margin-left: 1px; }
+    .deleted-time { color: #ef4444; font-size: 8px; margin-left: 1px; }
+    .log-entry i { font-style: normal; color: var(--text-muted); font-size: 9px; }
+    .log-entry mark { background: #fecaca; color: #991b1b; padding: 0 1px; border-radius: 1px; font-size: 8px; text-decoration: none; }
+    .reactions { background: #f3f4f6; padding: 0 2px; border-radius: 4px; font-size: 9px; margin-left: 1px; }
+    .transcript { font-style: italic; font-size: 9px; margin-left: 4px; text-decoration: underline; text-decoration-color: #ec4899; text-underline-offset: 2px; }
+    [data-theme="dark"] .transcript { text-decoration-color: #f472b6; }
+    .transcript-status { font-size: 10px; margin-left: 4px; }
+    .transcript-status.pending { animation: pulse 1.5s ease-in-out infinite; }
+    .transcript-status.failed { opacity: 0.7; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .tick { font-size: 9px; margin-left: 1px; }
+    .tick.single { color: #f59e0b; }
+    .tick.double { color: #10b981; }
+    .mark-read-btn { background: #10b981; color: white; border: none; border-radius: 1px; font-size: 8px; padding: 0 2px; margin-left: 1px; cursor: pointer; vertical-align: middle; }
+    .mark-read-btn:hover { background: #059669; }
+    .unseen-badge { color: #3b82f6; font-size: 9px; margin-left: 1px; }
+    .empty { padding: 20px; text-align: center; color: var(--text-muted); font-family: inherit; font-size: 10px; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 8px; font-size: 11px; }
+    .pagination a { color: var(--accent); text-decoration: none; }
+    .page-num { color: var(--text-muted); }
+
+    /* History Unlock */
+    .history-unlock-container { display: flex; justify-content: center; padding: 12px; margin-bottom: 8px; }
+    .history-unlock-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .history-unlock-btn:hover { background: var(--border); transform: scale(1.1); }
+    [data-theme="dark"] .history-unlock-btn { background: #374151; border-color: #4b5563; }
+    .history-unlocked-badge { background: #d1fae5; color: #047857; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    [data-theme="dark"] .history-unlocked-badge { background: #065f46; color: #d1fae5; }
+
+    /* Smart Home Widget */
+    .smart-widget { padding: 10px 12px; margin-bottom: 8px; }
+    .widget-header { display: flex; align-items: center; gap: 10px; }
+    .widget-icon { font-size: 18px; }
+    .widget-title { flex: 1; font-weight: 600; font-size: 13px; }
+    .order-toggle { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-weight: 500; }
+    .order-toggle:hover { background: var(--border); }
+    .order-toggle.asc { color: #10b981; }
+    .order-toggle.desc { color: #3b82f6; }
+    [data-theme="dark"] .order-toggle { background: #374151; border-color: #4b5563; }
+    .theme-toggle { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .theme-toggle:hover { background: var(--border); }
+    [data-theme="dark"] .theme-toggle { background: #374151; border-color: #4b5563; }
+    .widget-toggle { padding: 4px 12px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; cursor: pointer; }
+    .widget-toggle.on { background: #d1fae5; color: #047857; }
+    .widget-toggle.off { background: #f3f4f6; color: #6b7280; }
+    [data-theme="dark"] .widget-toggle.on { background: #065f46; color: #d1fae5; }
+    [data-theme="dark"] .widget-toggle.off { background: #374151; color: #9ca3af; }
+
+    /* Upload Progress Overlay */
+    .upload-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+    .upload-modal { background: var(--card-bg); border-radius: 12px; padding: 24px; min-width: 320px; max-width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid var(--border); }
+    .upload-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .upload-icon { font-size: 32px; }
+    .upload-title { font-size: 18px; font-weight: 600; color: var(--text); }
+    .upload-filename { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; word-break: break-all; max-height: 40px; overflow: hidden; }
+    .progress-bar-container { width: 100%; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); border-radius: 4px; transition: width 0.3s ease, background-color 0.3s ease; }
+    .upload-status { font-size: 14px; font-weight: 500; color: var(--text); text-align: center; margin-bottom: 16px; }
+    .upload-cancel-btn { width: 100%; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text); transition: background 0.2s; }
+    .upload-cancel-btn:hover { background: var(--border); }
+
+    @media (max-width: 600px) {
+        .messages-container { font-size: 9px; padding: 8px; }
+        .media-btn { padding: 6px 8px; font-size: 12px; margin-left: 6px; }
+        .media-btn-sm { padding: 2px 4px; font-size: 10px; margin-left: 3px; }
+        .media-btn-xs { padding: 1px 3px; font-size: 8px; }
+        .media-btn-nice { width: 24px; height: 24px; font-size: 10px; }
+        .refresh-btn-nice { width: 24px; height: 24px; font-size: 12px; }
+        .mark-all-btn { width: 24px; height: 24px; font-size: 9px; }
+        .send-form textarea { min-height: 28px; }
+        .send-form button { height: 28px; padding: 4px 10px; font-size: 11px; }
+        .upload-modal { min-width: 280px; padding: 20px; }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Text size control
+    const TEXT_SIZE_KEY = 'textSize';
+    const DEFAULT_TEXT_SIZE = 10;
+    let currentTextSize = parseInt(localStorage.getItem(TEXT_SIZE_KEY)) || DEFAULT_TEXT_SIZE;
+
+    function applyTextSize(size) {
+        document.querySelectorAll('.messages-container').forEach(el => {
+            el.style.fontSize = size + 'px';
+        });
+        const input = document.getElementById('text-size-input');
+        if (input) input.value = size;
+    }
+
+    function toggleTextSizeMenu() {
+        const menu = document.getElementById('text-size-menu');
+        menu.classList.toggle('show');
+        // Close when clicking outside
+        if (menu.classList.contains('show')) {
+            setTimeout(() => {
+                document.addEventListener('click', closeTextSizeMenuOnClickOutside);
+            }, 0);
+        }
+    }
+
+    function closeTextSizeMenuOnClickOutside(e) {
+        const wrapper = document.querySelector('.text-size-wrapper');
+        if (!wrapper.contains(e.target)) {
+            document.getElementById('text-size-menu').classList.remove('show');
+            document.removeEventListener('click', closeTextSizeMenuOnClickOutside);
+        }
+    }
+
+    function changeTextSize(delta) {
+        currentTextSize = Math.max(6, Math.min(20, currentTextSize + delta));
+        localStorage.setItem(TEXT_SIZE_KEY, currentTextSize);
+        applyTextSize(currentTextSize);
+    }
+
+    function setTextSize(value) {
+        const size = Math.max(6, Math.min(20, parseInt(value) || DEFAULT_TEXT_SIZE));
+        currentTextSize = size;
+        localStorage.setItem(TEXT_SIZE_KEY, currentTextSize);
+        applyTextSize(currentTextSize);
+    }
+
+    function resetTextSize() {
+        currentTextSize = DEFAULT_TEXT_SIZE;
+        localStorage.setItem(TEXT_SIZE_KEY, currentTextSize);
+        applyTextSize(currentTextSize);
+    }
+
+    // Apply saved text size on load
+    applyTextSize(currentTextSize);
+
+    // Mode toggle (ON = real, OFF = fake/tutorials)
+    // Default to OFF (safe mode) - only ON if explicitly set
+    // Uses timestamp to ensure 60-second timeout works across page refreshes
+    const MODE_KEY = 'realMode';
+    const MODE_TIME_KEY = 'realModeTime';
+    const MODE_TIMEOUT = 60000; // 60 seconds
+
+    function checkModeTimeout() {
+        const modeTime = parseInt(localStorage.getItem(MODE_TIME_KEY) || '0');
+        const now = Date.now();
+        if (now - modeTime > MODE_TIMEOUT) {
+            localStorage.setItem(MODE_KEY, 'false');
+            return false;
+        }
+        return localStorage.getItem(MODE_KEY) === 'true';
+    }
+
+    let realMode = checkModeTimeout();
+    updateModeUI();
+
+    // Check timeout every 5 seconds (works even with page refresh)
+    setInterval(() => {
+        const wasReal = realMode;
+        realMode = checkModeTimeout();
+        if (wasReal && !realMode) {
+            updateModeUI();
+        }
+    }, 5000);
+
+    function toggleMode() {
+        realMode = !realMode;
+        localStorage.setItem(MODE_KEY, realMode ? 'true' : 'false');
+        if (realMode) {
+            localStorage.setItem(MODE_TIME_KEY, Date.now().toString());
+        }
+        updateModeUI();
+    }
+
+    // Theme toggle (dark/light mode)
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        updateThemeUI();
+    }
+
+    function updateThemeUI() {
+        const theme = document.documentElement.getAttribute('data-theme') || 'light';
+        const btn = document.getElementById('theme-btn');
+        if (btn) {
+            btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+    }
+    updateThemeUI();
+
+    // Order toggle - sort messages within each hour
+    const ORDER_KEY = 'messageOrder';
+    let orderAsc = localStorage.getItem(ORDER_KEY) !== 'desc'; // default: ascending (early first)
+    updateOrderUI();
+
+    function toggleOrder() {
+        orderAsc = !orderAsc;
+        localStorage.setItem(ORDER_KEY, orderAsc ? 'asc' : 'desc');
+        updateOrderUI();
+        reorderMessages();
+    }
+
+    function updateOrderUI() {
+        const btn = document.getElementById('order-btn');
+        if (btn) {
+            btn.textContent = orderAsc ? '↑' : '↓';
+            btn.className = 'order-toggle ' + (orderAsc ? 'asc' : 'desc');
+            btn.title = orderAsc ? 'Early first (click for late first)' : 'Late first (click for early first)';
+        }
+    }
+
+    function reorderMessages() {
+        const logStream = document.querySelector('.log-stream');
+        if (!logStream) return;
+
+        // Group messages by hour separator
+        const groups = [];
+        let currentGroup = { separator: null, messages: [] };
+
+        Array.from(logStream.children).forEach(child => {
+            if (child.classList.contains('hour-separator')) {
+                if (currentGroup.separator || currentGroup.messages.length > 0) {
+                    groups.push(currentGroup);
+                }
+                currentGroup = { separator: child, messages: [] };
+            } else if (child.classList.contains('log-entry')) {
+                currentGroup.messages.push(child);
+            }
+        });
+        if (currentGroup.separator || currentGroup.messages.length > 0) {
+            groups.push(currentGroup);
+        }
+
+        // Clear and rebuild
+        logStream.innerHTML = '';
+
+        groups.forEach(group => {
+            if (group.separator) {
+                logStream.appendChild(group.separator);
+            }
+
+            // Sort messages by timestamp within group
+            group.messages.sort((a, b) => {
+                const tsA = a.dataset.ts || '';
+                const tsB = b.dataset.ts || '';
+                return orderAsc ? tsA.localeCompare(tsB) : tsB.localeCompare(tsA);
+            });
+
+            group.messages.forEach(msg => logStream.appendChild(msg));
+        });
+    }
+
+    // Apply initial order if desc
+    if (!orderAsc) {
+        reorderMessages();
+    }
+
+    function updateModeUI() {
+        const btn = document.getElementById('mode-btn');
+        const realContent = document.getElementById('real-content');
+        const fakeContent = document.getElementById('fake-content');
+
+        if (realMode) {
+            btn.textContent = 'ON';
+            btn.className = 'widget-toggle on';
+            realContent.style.display = 'block';
+            fakeContent.style.display = 'none';
+        } else {
+            btn.textContent = 'OFF';
+            btn.className = 'widget-toggle off';
+            realContent.style.display = 'none';
+            fakeContent.style.display = 'block';
+        }
+    }
+
+    // Service Worker registration for push notifications
+    let swRegistration = null;
+
+    async function initPushNotifications() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            console.log('[Push] Push notifications not supported');
+            return;
+        }
+
+        try {
+            // Register service worker
+            swRegistration = await navigator.serviceWorker.register('/static/sw.js');
+            console.log('[Push] Service Worker registered:', swRegistration);
+
+            // Wait for service worker to be ready
+            await navigator.serviceWorker.ready;
+            console.log('[Push] Service Worker ready');
+
+        } catch (err) {
+            console.error('[Push] Service Worker registration failed:', err);
+        }
+    }
+
+    // Subscribe to push notifications
+    async function subscribeToPush() {
+        if (!swRegistration) {
+            console.log('[Push] No service worker registration');
+            return false;
+        }
+
+        try {
+            // Get VAPID public key from server
+            const keyResp = await fetch('/api/push/vapid-public-key');
+            const { publicKey } = await keyResp.json();
+
+            // Convert VAPID key to Uint8Array
+            const vapidPublicKey = urlBase64ToUint8Array(publicKey);
+
+            // Subscribe to push
+            const subscription = await swRegistration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: vapidPublicKey
+            });
+
+            console.log('[Push] Subscribed:', subscription.endpoint.substring(0, 50) + '...');
+
+            // Send subscription to server
+            const resp = await fetch('/api/push/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(subscription.toJSON())
+            });
+
+            const result = await resp.json();
+            console.log('[Push] Subscription saved:', result);
+            return true;
+
+        } catch (err) {
+            console.error('[Push] Subscription failed:', err);
+            return false;
+        }
+    }
+
+    // Convert base64 URL-safe string to Uint8Array for VAPID key
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    // Initialize push on load
+    initPushNotifications();
+
+    // Keep-alive mechanism for service worker
+    // Pings the service worker every 60 seconds to keep it active
+    // This is especially important for iOS Safari where service workers can be suspended
+    async function keepServiceWorkerAlive() {
+        if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
+            return;
+        }
+
+        try {
+            // Send keep-alive message to service worker
+            const messageChannel = new MessageChannel();
+            navigator.serviceWorker.controller.postMessage(
+                { type: 'KEEP_ALIVE' },
+                [messageChannel.port2]
+            );
+
+            // Wait for response (with timeout)
+            const timeout = new Promise(resolve => setTimeout(() => resolve({ status: 'timeout' }), 5000));
+            const response = new Promise(resolve => {
+                messageChannel.port1.onmessage = (event) => resolve(event.data);
+            });
+
+            const result = await Promise.race([response, timeout]);
+            if (result.status === 'alive') {
+                console.log('[Keep-Alive] Service worker is alive');
+            } else if (result.status === 'timeout') {
+                console.warn('[Keep-Alive] Service worker did not respond, may be suspended');
+                // Try to re-register
+                await initPushNotifications();
+            }
+        } catch (err) {
+            console.error('[Keep-Alive] Error:', err);
+        }
+    }
+
+    // Run keep-alive every 60 seconds
+    setInterval(keepServiceWorkerAlive, 60000);
+
+    // Trigger badge update from service worker immediately
+    async function triggerBadgeUpdate() {
+        if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
+            return;
+        }
+
+        try {
+            navigator.serviceWorker.controller.postMessage({ type: 'BADGE_UPDATE' });
+            console.log('[Badge] Update triggered');
+        } catch (err) {
+            console.error('[Badge] Trigger error:', err);
+        }
+    }
+    window.triggerBadgeUpdate = triggerBadgeUpdate;
+
+    // Push notifications for new messages
+    const NOTIF_KEY = 'lastSeenMsgId';
+    const currentMsgIds = Array.from(document.querySelectorAll('.log-entry.from-them[data-msgid]'))
+        .map(el => parseInt(el.dataset.msgid));
+    const latestMsgId = currentMsgIds.length > 0 ? Math.max(...currentMsgIds) : 0;
+    const lastSeenMsgId = parseInt(localStorage.getItem(NOTIF_KEY) || '0');
+
+    // Detect Safari browser
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    // Request notification permission on user interaction (required for iOS Safari)
+    async function requestNotificationPermission() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            try {
+                const permission = await Notification.requestPermission();
+                console.log('[Notifications] Permission status:', permission);
+                if (permission === 'granted') {
+                    // Subscribe to push notifications
+                    const subscribed = await subscribeToPush();
+                    if (subscribed) {
+                        console.log('[Push] Successfully subscribed to push notifications');
+                    }
+                    // Show a test notification to confirm it works
+                    showHANotification(0);
+                }
+            } catch (err) {
+                console.log('[Notifications] Permission request failed:', err);
+            }
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+            // Already granted, make sure we're subscribed
+            const subscribed = await subscribeToPush();
+            console.log('[Push] Already granted, subscription status:', subscribed);
+        }
+    }
+
+    // Explicit enable notifications button handler
+    async function enableNotifications() {
+        const btn = document.getElementById('notif-btn');
+        if (!('Notification' in window)) {
+            alert('Notifications not supported on this device');
+            return;
+        }
+        if (Notification.permission === 'granted') {
+            // Already enabled, send test
+            const subscribed = await subscribeToPush();
+            if (subscribed) {
+                btn.textContent = '🔔';
+                btn.style.opacity = '1';
+                showHANotification(0);
+            }
+            return;
+        }
+        if (Notification.permission === 'denied') {
+            alert('Notifications blocked. Enable in Settings > Safari > Notifications');
+            return;
+        }
+        // Request permission
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                const subscribed = await subscribeToPush();
+                btn.textContent = '🔔';
+                btn.style.opacity = '1';
+                if (subscribed) {
+                    showHANotification(0);
+                }
+            } else {
+                btn.textContent = '🔕';
+            }
+        } catch (err) {
+            console.error('[Notifications] Permission error:', err);
+            alert('Failed to enable notifications: ' + err.message);
+        }
+    }
+    // Expose globally
+    window.enableNotifications = enableNotifications;
+
+    // Update notification button state on load
+    (function updateNotifBtn() {
+        const btn = document.getElementById('notif-btn');
+        if (!btn) return;
+        if (!('Notification' in window)) {
+            btn.style.display = 'none';
+            return;
+        }
+        if (Notification.permission === 'granted') {
+            btn.textContent = '🔔';
+            btn.style.opacity = '1';
+            // Auto-subscribe if already granted
+            subscribeToPush();
+        } else if (Notification.permission === 'denied') {
+            btn.textContent = '🔕';
+            btn.style.opacity = '0.5';
+        } else {
+            btn.textContent = '🔔';
+            btn.style.opacity = '0.5';
+        }
+    })();
+
+    // Test push notification
+    async function testPush() {
+        const btn = document.getElementById('test-btn');
+        btn.textContent = '...';
+        try {
+            const resp = await fetch('/api/push/test', { method: 'POST' });
+            const data = await resp.json();
+            btn.textContent = '✓';
+            console.log('[Push] Test sent:', data);
+            setTimeout(() => { btn.textContent = '📤'; }, 2000);
+        } catch (err) {
+            btn.textContent = '✗';
+            console.error('[Push] Test failed:', err);
+            setTimeout(() => { btn.textContent = '📤'; }, 2000);
+        }
+    }
+    window.testPush = testPush;
+
+    // Helper function to update badge from API
+    async function updateBadgeFromAPI() {
+        try {
+            const badgeResp = await fetch('/api/badge/count');
+            const { count, enabled } = await badgeResp.json();
+
+            if (enabled && 'setAppBadge' in navigator) {
+                if (count > 0) {
+                    await navigator.setAppBadge(count);
+                    console.log('[Badge] Updated to', count);
+                } else {
+                    await navigator.clearAppBadge();
+                    console.log('[Badge] Cleared');
+                }
+            }
+        } catch (err) {
+            console.log('[Badge] Update error:', err);
+        }
+    }
+
+    // Badge toggle functionality
+    async function toggleBadge() {
+        const btn = document.getElementById('badge-btn');
+        try {
+            // Get current state
+            const resp = await fetch('/api/settings/badge');
+            const { enabled } = await resp.json();
+
+            // Toggle it
+            const newEnabled = !enabled;
+            await fetch('/api/settings/badge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: newEnabled })
+            });
+
+            // Update button
+            btn.style.opacity = newEnabled ? '1' : '0.5';
+            btn.title = newEnabled ? 'Badge enabled (tap to disable)' : 'Badge disabled (tap to enable)';
+
+            // Update or clear badge
+            if (newEnabled) {
+                await updateBadgeFromAPI();
+            } else if ('clearAppBadge' in navigator) {
+                await navigator.clearAppBadge();
+            }
+        } catch (err) {
+            console.error('[Badge] Toggle error:', err);
+        }
+    }
+    window.toggleBadge = toggleBadge;
+
+    // Initialize badge button state and update badge count
+    (async function initBadgeBtn() {
+        const btn = document.getElementById('badge-btn');
+        if (!btn) return;
+        try {
+            const resp = await fetch('/api/settings/badge');
+            const { enabled } = await resp.json();
+            btn.style.opacity = enabled ? '1' : '0.5';
+            btn.title = enabled ? 'Badge enabled (tap to disable)' : 'Badge disabled (tap to enable)';
+
+            // Update badge count on page load
+            if (enabled && 'setAppBadge' in navigator) {
+                const badgeResp = await fetch('/api/badge/count');
+                const { count } = await badgeResp.json();
+                if (count > 0) {
+                    await navigator.setAppBadge(count);
+                    console.log('[Badge] Set to', count, 'on page load');
+                } else {
+                    await navigator.clearAppBadge();
+                    console.log('[Badge] Cleared on page load');
+                }
+            }
+        } catch (err) {
+            console.log('[Badge] Init error:', err);
+        }
+    })();
+
+    // Function to show Home Assistant branded notification
+    function showHANotification(count) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+                // Use the Notification API directly for better browser compatibility
+                // Safari supports the Web Notification API but with some limitations
+                const body = count === 0
+                    ? 'Notifications enabled for Home Assistant'
+                    : `${count} new automation event${count > 1 ? 's' : ''}`;
+                const notif = new Notification('Home Assistant', {
+                    body: body,
+                    icon: '/static/ha-icon.svg',
+                    badge: '/static/ha-icon.svg',
+                    tag: 'ha-activity',
+                    requireInteraction: false,
+                    silent: count === 0, // Silent for test notification
+                    // Safari on iOS doesn't support vibrate in notifications
+                    vibrate: isIOS ? undefined : [200, 100, 200]
+                });
+
+                // Close notification after 5 seconds, do nothing on click (keep it secret)
+                notif.onclick = (e) => {
+                    e.preventDefault();
+                    notif.close();
+                    // Do nothing - no navigation, no window focus
+                };
+
+                // Safari may auto-dismiss notifications, but we'll set our own timeout
+                setTimeout(() => {
+                    try {
+                        notif.close();
+                    } catch (e) {
+                        // Notification may already be closed
+                    }
+                }, 5000);
+            } catch (error) {
+                console.error('[Notifications] Error showing notification:', error);
+            }
+        }
+    }
+
+    // Check for new messages and notify
+    if (latestMsgId > lastSeenMsgId && lastSeenMsgId > 0) {
+        const newCount = currentMsgIds.filter(id => id > lastSeenMsgId).length;
+        if (newCount > 0) {
+            showHANotification(newCount);
+        }
+    }
+    localStorage.setItem(NOTIF_KEY, latestMsgId.toString());
+
+    // Send media file with progress tracking
+    let currentUploadXHR = null;
+
+    function sendMedia(input, type) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', type);
+
+        // Show progress overlay
+        const overlay = document.getElementById('upload-progress-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('upload-status');
+        const filenameText = document.getElementById('upload-filename');
+        const titleText = document.getElementById('upload-title');
+        const iconText = document.getElementById('upload-icon');
+
+        overlay.style.display = 'flex';
+        progressBar.style.width = '0%';
+        statusText.textContent = '0%';
+        filenameText.textContent = file.name;
+        titleText.textContent = 'Uploading...';
+        iconText.textContent = '📤';
+
+        // Use XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        currentUploadXHR = xhr;
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                statusText.textContent = percentComplete + '%';
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            currentUploadXHR = null;
+            if (xhr.status === 200) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        iconText.textContent = '✅';
+                        titleText.textContent = 'Upload complete!';
+                        progressBar.style.width = '100%';
+                        statusText.textContent = '100%';
+                        console.log('[Media] Upload complete, scheduling refresh...');
+                        // Hide overlay then use staggered refresh
+                        setTimeout(() => {
+                            overlay.style.display = 'none';
+                        }, 500);
+                        scheduleRefreshes();
+                    } else {
+                        iconText.textContent = '❌';
+                        titleText.textContent = 'Upload failed';
+                        statusText.textContent = data.error || 'Unknown error';
+                        progressBar.style.width = '0%';
+                        progressBar.style.backgroundColor = '#ef4444';
+                    }
+                } catch (e) {
+                    iconText.textContent = '❌';
+                    titleText.textContent = 'Upload failed';
+                    statusText.textContent = 'Invalid response from server';
+                    progressBar.style.backgroundColor = '#ef4444';
+                }
+            } else {
+                iconText.textContent = '❌';
+                titleText.textContent = 'Upload failed';
+                statusText.textContent = `Server error: ${xhr.status}`;
+                progressBar.style.backgroundColor = '#ef4444';
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            currentUploadXHR = null;
+            iconText.textContent = '❌';
+            titleText.textContent = 'Network error';
+            statusText.textContent = 'Failed to connect to server';
+            progressBar.style.width = '0%';
+            progressBar.style.backgroundColor = '#ef4444';
+        });
+
+        xhr.addEventListener('abort', () => {
+            currentUploadXHR = null;
+            iconText.textContent = '🚫';
+            titleText.textContent = 'Upload cancelled';
+            statusText.textContent = 'Cancelled by user';
+            progressBar.style.width = '0%';
+            progressBar.style.backgroundColor = '#94a3b8';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 1500);
+        });
+
+        xhr.open('POST', '/api/send-media');
+        xhr.send(formData);
+
+        input.value = '';
+    }
+
+    function cancelUpload() {
+        if (currentUploadXHR) {
+            currentUploadXHR.abort();
+        } else {
+            document.getElementById('upload-progress-overlay').style.display = 'none';
+        }
+    }
+
+    // Parse UTC timestamp
+    function parseUTC(ts) {
+        if (!ts) return null;
+        if (!ts.endsWith('Z') && !ts.includes('+')) {
+            ts = ts.replace(' ', 'T') + 'Z';
+        }
+        return new Date(ts);
+    }
+
+    function formatTimeAgo(date) {
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        if (minutes < 1) return '(now)';
+        if (minutes < 60) return `(${minutes}m)`;
+        if (hours < 24) return `(${hours}h)`;
+        return `(${days}d)`;
+    }
+
+    function formatReadTime(date, prefix) {
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        if (minutes < 1) return `(${prefix}now)`;
+        if (minutes < 60) return `(${prefix}${minutes}m)`;
+        if (hours < 24) return `(${prefix}${hours}h)`;
+        return `(${prefix}${days}d)`;
+    }
+
+    document.querySelectorAll('.log-entry').forEach(el => {
+        const ts = el.dataset.ts;
+        if (!ts) return;
+        const msgDate = parseUTC(ts);
+        const now = new Date();
+        const hoursAgo = (now - msgDate) / (1000 * 60 * 60);
+        let ageClass;
+        if (hoursAgo < 1) ageClass = 'age-0';
+        else if (hoursAgo < 6) ageClass = 'age-1';
+        else if (hoursAgo < 24) ageClass = 'age-2';
+        else ageClass = 'age-3';
+        el.classList.add(ageClass);
+        const timeAgoEl = el.querySelector('.time-ago');
+        if (timeAgoEl) timeAgoEl.textContent = formatTimeAgo(msgDate);
+    });
+
+    document.querySelectorAll('.read-time').forEach(el => {
+        const readAt = el.dataset.readAt;
+        if (readAt) el.textContent = formatReadTime(parseUTC(readAt), 'r');
+    });
+
+    document.querySelectorAll('.seen-time').forEach(el => {
+        const seenAt = el.dataset.seenAt;
+        if (seenAt) el.textContent = formatReadTime(parseUTC(seenAt), 's');
+    });
+
+    document.querySelectorAll('.deleted-time').forEach(el => {
+        const deletedAt = el.dataset.deletedAt;
+        if (deletedAt) el.textContent = formatReadTime(parseUTC(deletedAt), 'd');
+    });
+
+    document.querySelectorAll('.reactions').forEach(el => {
+        try {
+            const reactions = JSON.parse(el.dataset.reactions);
+            if (reactions && reactions.length > 0) {
+                el.textContent = reactions.map(r => r.emoji.startsWith('custom:') ? '...' : (r.count > 1 ? `${r.emoji}${r.count}` : r.emoji)).join(' ');
+            }
+        } catch (e) { el.remove(); }
+    });
+
+    const textarea = document.querySelector('.send-form textarea');
+    if (textarea) {
+        // Auto-expand textarea as you type
+        function autoExpand() {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+        textarea.addEventListener('input', autoExpand);
+
+        // Restore draft
+        const saved = localStorage.getItem('draft_v6');
+        if (saved) {
+            textarea.value = saved;
+            autoExpand();
+        }
+
+        // Save draft on input
+        textarea.addEventListener('input', () => localStorage.setItem('draft_v6', textarea.value));
+
+        // Clear draft on submit
+        textarea.closest('form').addEventListener('submit', () => localStorage.removeItem('draft_v6'));
+
+        // Submit on Enter (Shift+Enter for newline)
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(e);
+            }
+        });
+    }
+
+    // Reply and Schedule state
+    let currentReplyTo = null;
+    let currentScheduleMinutes = 0;
+
+    function setReply(msgId, msgText) {
+        currentReplyTo = msgId;
+        const indicator = document.getElementById('reply-indicator');
+        const text = document.getElementById('reply-text');
+        text.textContent = '↩ ' + msgText;
+        indicator.style.display = 'flex';
+        document.getElementById('msg-input').focus();
+    }
+
+    // Check for pending reply from list page navigation
+    (function checkPendingReply() {
+        const pendingReplyData = localStorage.getItem('pendingReply');
+        if (pendingReplyData) {
+            try {
+                const data = JSON.parse(pendingReplyData);
+                // Only use if less than 5 minutes old
+                if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+                    setReply(data.messageId, data.preview);
+                }
+            } catch (e) {
+                console.log('[Reply] Error parsing pending reply:', e);
+            }
+            // Clear the pending reply after reading
+            localStorage.removeItem('pendingReply');
+        }
+    })();
+
+    function cancelReply() {
+        currentReplyTo = null;
+        document.getElementById('reply-indicator').style.display = 'none';
+    }
+
+    function toggleScheduleMenu() {
+        const menu = document.getElementById('schedule-menu');
+        const btn = document.getElementById('schedule-btn');
+        menu.classList.toggle('show');
+        if (menu.classList.contains('show')) {
+            // Position menu relative to button
+            const rect = btn.getBoundingClientRect();
+            menu.style.top = (btn.offsetHeight + 4) + 'px';
+            menu.style.left = '0';
+            // Close when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', closeScheduleMenuOnClickOutside);
+            }, 0);
+        }
+    }
+
+    function closeScheduleMenuOnClickOutside(e) {
+        const menu = document.getElementById('schedule-menu');
+        const btn = document.getElementById('schedule-btn');
+        if (!menu.contains(e.target) && e.target !== btn) {
+            menu.classList.remove('show');
+            document.removeEventListener('click', closeScheduleMenuOnClickOutside);
+        }
+    }
+
+    function setSchedule(minutes) {
+        currentScheduleMinutes = minutes;
+        const indicator = document.getElementById('schedule-indicator');
+        const text = document.getElementById('schedule-text');
+        const btn = document.getElementById('schedule-btn');
+        const menu = document.getElementById('schedule-menu');
+
+        menu.classList.remove('show');
+        document.removeEventListener('click', closeScheduleMenuOnClickOutside);
+
+        if (minutes === 0) {
+            indicator.style.display = 'none';
+            btn.classList.remove('active');
+        } else {
+            let label = '';
+            if (minutes < 60) label = `⏰ In ${minutes} min`;
+            else if (minutes === 60) label = '⏰ In 1 hour';
+            else label = `⏰ In ${Math.floor(minutes/60)}h ${minutes%60}m`;
+            text.textContent = label;
+            indicator.style.display = 'flex';
+            btn.classList.add('active');
+        }
+    }
+
+    function setScheduleCustom() {
+        const menu = document.getElementById('schedule-menu');
+        menu.classList.remove('show');
+        document.removeEventListener('click', closeScheduleMenuOnClickOutside);
+
+        const input = prompt('Schedule message in how many minutes?', '10');
+        if (input !== null) {
+            const minutes = parseInt(input);
+            if (!isNaN(minutes) && minutes > 0) {
+                setSchedule(minutes);
+            }
+        }
+    }
+
+    function cancelSchedule() {
+        setSchedule(0);
+    }
+
+    // Send message via AJAX
+    let pendingRefreshes = [];
+    const CONFIGURED_REFRESH_DELAY = {{ refresh_delay|default(2) }};
+
+    function scheduleRefreshes() {
+        // Cancel any pending refreshes first
+        pendingRefreshes.forEach(id => clearTimeout(id));
+        pendingRefreshes = [];
+
+        const baseDelay = Math.max(CONFIGURED_REFRESH_DELAY * 1000, 500);
+        // Schedule staggered refreshes to ensure page reloads with new message
+        // First refresh at configured delay (default 2s)
+        // Second at configured delay + 1.5s as fallback
+        const delays = [baseDelay, baseDelay + 1500];
+        console.log('[Send] Scheduling page refreshes at:', delays.map(d => d + 'ms').join(', '));
+        delays.forEach(delay => {
+            const id = setTimeout(() => {
+                console.log('[Send] Refreshing page now (after ' + delay + 'ms)');
+                location.reload();
+            }, delay);
+            pendingRefreshes.push(id);
+        });
+    }
+
+    function sendMessage(e) {
+        if (e) e.preventDefault();
+        const textarea = document.getElementById('msg-input');
+        const btn = document.getElementById('send-btn');
+        const text = textarea.value.trim();
+        if (!text) return false;
+
+        // Disable button and show sending state
+        btn.disabled = true;
+        btn.textContent = '...';
+        console.log('[Send] Sending message...');
+
+        // Build request body with optional reply_to and schedule
+        const body = { text: text };
+        if (currentReplyTo) {
+            body.reply_to = currentReplyTo;
+        }
+        if (currentScheduleMinutes > 0) {
+            body.schedule_minutes = currentScheduleMinutes;
+        }
+
+        fetch('/api/send-message', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                console.log('[Send] Message sent successfully, preparing refresh...');
+                // Clear textarea, draft, and reply/schedule state
+                textarea.value = '';
+                localStorage.removeItem('draft_v6');
+                cancelReply();
+                cancelSchedule();
+
+                if (data.scheduled_at) {
+                    btn.textContent = '⏰';
+                    // Show alert, then schedule refresh after user dismisses it
+                    alert('Message scheduled for: ' + data.scheduled_at);
+                } else {
+                    btn.textContent = '✓';
+                }
+                // Use staggered refresh to ensure page reloads with new data
+                scheduleRefreshes();
+            } else {
+                console.warn('[Send] Message failed:', data.error);
+                alert('Failed: ' + (data.error || 'Unknown error'));
+                btn.textContent = 'Go';
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error('[Send] Error sending message:', err);
+            alert('Error: ' + err);
+            btn.textContent = 'Go';
+            btn.disabled = false;
+        });
+        return false;
+    }
+
+    setTimeout(() => location.reload(), 30000);
+
+    function markRead(msgId, chatId, btn) {
+        btn.disabled = true;
+        btn.textContent = '...';
+        fetch('/api/mark-read', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message_id: msgId, chat_id: chatId}) })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const entry = btn.closest('.log-entry');
+                entry.classList.remove('unread');
+                const single = entry.querySelector('.tick.single');
+                if (single) { single.className = 'tick double'; single.textContent = '✓✓'; }
+                btn.remove();
+
+                // Update badge count from API
+                updateBadgeFromAPI();
+
+                // Also notify service worker to update its badge
+                if (typeof triggerBadgeUpdate === 'function') {
+                    triggerBadgeUpdate();
+                }
+                console.log('[Mark Read] Badge updated and service worker notified');
+            }
+        });
+    }
+
+    function markAllRead() {
+        const btn = document.querySelector('.mark-all-btn');
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = '...';
+        fetch('/api/mark-all-read', { method: 'POST', headers: {'Content-Type': 'application/json'} })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                btn.textContent = '✓';
+                document.querySelectorAll('.log-entry.unread').forEach(entry => {
+                    entry.classList.remove('unread');
+                    const single = entry.querySelector('.tick.single');
+                    if (single) { single.className = 'tick double'; single.textContent = '✓✓'; }
+                    const readBtn = entry.querySelector('.mark-read-btn');
+                    if (readBtn) readBtn.remove();
+                });
+                // Clear app badge when all marked read
+                if ('clearAppBadge' in navigator) {
+                    navigator.clearAppBadge().catch(() => {});
+                }
+                // Also trigger service worker to update badge
+                if (typeof triggerBadgeUpdate === 'function') {
+                    triggerBadgeUpdate();
+                }
+                console.log('[Mark All Read] Badge cleared and service worker notified');
+            }
+        });
+    }
+
+    function unlockHistory() {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: var(--bg);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+        `;
+
+        modalContent.innerHTML = `
+            <h3 style="margin: 0 0 16px 0; color: var(--text);">What time is it?</h3>
+            <input type="text" id="history-password" placeholder="Enter time"
+                style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px;
+                       background: var(--bg); color: var(--text); font-size: 1rem; margin-bottom: 16px; box-sizing: border-box;">
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button id="unlock-cancel" style="padding: 10px 20px; border: 1px solid var(--border);
+                        border-radius: 6px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.9rem;">
+                    Cancel
+                </button>
+                <button id="unlock-submit" style="padding: 10px 20px; border: none; border-radius: 6px;
+                        background: var(--accent); color: white; cursor: pointer; font-weight: 500; font-size: 0.9rem;">
+                    Unlock
+                </button>
+            </div>
+            <div id="unlock-error" style="margin-top: 12px; color: #e74c3c; font-size: 0.85rem; display: none;"></div>
+        `;
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        const passwordInput = document.getElementById('history-password');
+        const submitBtn = document.getElementById('unlock-submit');
+        const cancelBtn = document.getElementById('unlock-cancel');
+        const errorDiv = document.getElementById('unlock-error');
+
+        // Focus input
+        setTimeout(() => passwordInput.focus(), 100);
+
+        // Handle submit
+        const handleSubmit = async () => {
+            const password = passwordInput.value.trim();
+            if (!password) {
+                errorDiv.textContent = 'Please enter a time';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/unlock-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    modal.remove();
+                    location.reload();
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid password';
+                    errorDiv.style.display = 'block';
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        };
+
+        // Event listeners
+        submitBtn.addEventListener('click', handleSubmit);
+        cancelBtn.addEventListener('click', () => modal.remove());
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSubmit();
+        });
+
+        // Close on outside click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+</script>
+{% endblock %}

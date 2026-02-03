@@ -1,0 +1,303 @@
+{% extends "base_v3.html" %}
+
+{% block title %}Media Archive{% endblock %}
+
+{% block content %}
+<div class="log-header">
+    MEDIA ARCHIVE • {{ media|length }} files
+    <span style="float:right">
+        <a href="?type=" style="color:inherit;text-decoration:none;{% if not filter_type %}font-weight:bold;{% endif %}">all</a>
+        <a href="?type=photo" style="color:inherit;text-decoration:none;margin-left:8px;{% if filter_type == 'photo' %}font-weight:bold;{% endif %}">photos</a>
+        <a href="?type=video" style="color:inherit;text-decoration:none;margin-left:8px;{% if filter_type == 'video' %}font-weight:bold;{% endif %}">videos</a>
+        <a href="?type=voice" style="color:inherit;text-decoration:none;margin-left:8px;{% if filter_type == 'voice' %}font-weight:bold;{% endif %}">voice</a>
+        <a href="?page={{ page }}" onclick="location.reload();return false;" style="color:inherit;text-decoration:none;margin-left:12px;">[refresh]</a>
+    </span>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+    {% for type, count in stats.items() %}
+    <div class="stat-item">
+        <span class="stat-count">{{ count }}</span>
+        <span class="stat-label">{{ type or 'other' }}</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="content-area">
+    {% if media %}
+    <div class="media-grid">
+        {% for item in media %}
+        <div class="media-item" data-type="{{ item.media_type }}">
+            <div class="media-preview">
+                {% if item.media_type == 'photo' %}
+                <img src="/media/{{ item.media_path }}" alt="photo" loading="lazy">
+                {% elif item.media_type == 'video' %}
+                <video src="/media/{{ item.media_path }}" preload="metadata"></video>
+                <div class="media-icon">▶</div>
+                {% elif item.media_type == 'voice' or item.media_type == 'audio' %}
+                <div class="media-audio">
+                    <div class="media-icon">🎤</div>
+                    <audio src="/media/{{ item.media_path }}" preload="metadata"></audio>
+                </div>
+                {% elif item.media_type == 'sticker' %}
+                <img src="/media/{{ item.media_path }}" alt="sticker" class="sticker" loading="lazy">
+                {% else %}
+                <div class="media-file">
+                    <div class="media-icon">📄</div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="media-info">
+                <span class="media-sender {{ 'src-a' if item.sender_name == my_name else 'src-b' }}">{{ item.sender_name }}</span>
+                <span class="media-time">{{ item.timestamp[:16] if item.timestamp else '' }}</span>
+            </div>
+            {% if item.text and item.text != '[Media]' %}
+            <div class="media-caption">{{ item.text[:100] }}{% if item.text|length > 100 %}...{% endif %}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-log">No media files yet. Send or receive media to see it here.</div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}{% if filter_type %}&type={{ filter_type }}{% endif %}">[newer]</a>
+    {% endif %}
+    {% if has_more %}
+    <a href="?page={{ page + 1 }}{% if filter_type %}&type={{ filter_type }}{% endif %}">[older]</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .stats-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+
+    .stat-item {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 8px 14px;
+        font-size: 11px;
+    }
+
+    .stat-count {
+        font-weight: 600;
+        margin-right: 4px;
+    }
+
+    .stat-label {
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .media-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+        padding: 4px;
+    }
+
+    .media-item {
+        background: var(--bg-alt);
+        border-radius: 6px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .media-item:hover {
+        transform: scale(1.02);
+    }
+
+    .media-preview {
+        position: relative;
+        width: 100%;
+        padding-top: 100%;
+        background: #e0e0e0;
+        overflow: hidden;
+    }
+
+    .media-preview img,
+    .media-preview video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .media-preview .sticker {
+        object-fit: contain;
+        background: white;
+    }
+
+    .media-audio,
+    .media-file {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #e8e8e8, #d0d0d0);
+    }
+
+    .media-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        background: rgba(255,255,255,0.9);
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .media-info {
+        padding: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 10px;
+    }
+
+    .media-sender.src-a { color: #2563eb; }
+    .media-sender.src-b { color: #1f1f1f; }
+
+    .media-time {
+        color: var(--text-muted);
+    }
+
+    .media-caption {
+        padding: 0 8px 8px;
+        font-size: 10px;
+        color: var(--text-muted);
+        line-height: 1.3;
+    }
+
+    .pagination {
+        margin-top: 12px;
+        font-size: 11px;
+        display: flex;
+        gap: 12px;
+    }
+
+    .pagination a {
+        color: var(--text);
+        text-decoration: none;
+    }
+
+    /* Lightbox */
+    .lightbox {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.95);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .lightbox.active {
+        display: flex;
+    }
+
+    .lightbox img,
+    .lightbox video {
+        max-width: 95%;
+        max-height: 95%;
+        object-fit: contain;
+    }
+
+    .lightbox audio {
+        width: 80%;
+        max-width: 400px;
+    }
+
+    .lightbox-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+        .media-grid {
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Create lightbox
+    const lightbox = document.createElement('div');
+    lightbox.className = 'lightbox';
+    lightbox.innerHTML = '<span class="lightbox-close">×</span>';
+    document.body.appendChild(lightbox);
+
+    lightbox.onclick = () => {
+        lightbox.classList.remove('active');
+        lightbox.querySelectorAll('img, video, audio').forEach(el => el.remove());
+    };
+
+    // Handle media clicks
+    document.querySelectorAll('.media-item').forEach(item => {
+        item.onclick = (e) => {
+            e.stopPropagation();
+            const type = item.dataset.type;
+            const img = item.querySelector('img');
+            const video = item.querySelector('video');
+            const audio = item.querySelector('audio');
+
+            if (type === 'photo' || type === 'sticker') {
+                const fullImg = document.createElement('img');
+                fullImg.src = img.src;
+                lightbox.appendChild(fullImg);
+                lightbox.classList.add('active');
+            } else if (type === 'video') {
+                const fullVideo = document.createElement('video');
+                fullVideo.src = video.src;
+                fullVideo.controls = true;
+                fullVideo.autoplay = true;
+                lightbox.appendChild(fullVideo);
+                lightbox.classList.add('active');
+            } else if (type === 'voice' || type === 'audio') {
+                const fullAudio = document.createElement('audio');
+                fullAudio.src = audio.src;
+                fullAudio.controls = true;
+                fullAudio.autoplay = true;
+                lightbox.appendChild(fullAudio);
+                lightbox.classList.add('active');
+            }
+        };
+    });
+</script>
+{% endblock %}

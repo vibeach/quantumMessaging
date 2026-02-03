@@ -1,0 +1,487 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Render Status{% endblock %}
+
+{% block content %}
+<!-- Smart Home Widget (decoy) -->
+<div class="smart-widget card" id="mode-toggle">
+    <div class="widget-header">
+        <span class="widget-icon" onclick="toggleMode()" style="cursor:pointer">💡</span>
+        <span class="widget-title">Living Room Lights</span>
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+        <button class="widget-toggle on" id="mode-btn" onclick="toggleMode()">ON</button>
+    </div>
+</div>
+
+<!-- Real content -->
+<div id="real-content">
+<!-- Top bar -->
+<div class="top-bar card">
+    <div class="refresh-row">
+        <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
+        <span class="refresh-time">{{ last_refresh }}</span>
+        <a href="https://dashboard.render.com" target="_blank" class="dashboard-link">Open Render Dashboard</a>
+    </div>
+</div>
+
+{% if not api_configured %}
+<!-- API Not Configured Notice -->
+<div class="setup-card card">
+    <h2>Render API Setup</h2>
+    <p class="setup-desc">Configure Render API to manage deployments from here. This is optional - you can always use the Render dashboard directly.</p>
+
+    <div class="setup-steps">
+        <div class="setup-step">
+            <span class="step-num">1</span>
+            <div class="step-content">
+                <strong>Get API Key</strong>
+                <p>Go to <a href="https://dashboard.render.com/u/settings#api-keys" target="_blank">Render Account Settings → API Keys</a></p>
+            </div>
+        </div>
+        <div class="setup-step">
+            <span class="step-num">2</span>
+            <div class="step-content">
+                <strong>Get Service ID</strong>
+                <p>Find in your service URL: dashboard.render.com/web/<code>srv-xxxxx</code></p>
+            </div>
+        </div>
+        <div class="setup-step">
+            <span class="step-num">3</span>
+            <div class="step-content">
+                <strong>Set Environment Variables</strong>
+                <p>Add these to your Render service or local .env:</p>
+                <code>RENDER_API_KEY=rnd_xxxxx</code><br>
+                <code>RENDER_SERVICE_ID=srv-xxxxx</code>
+            </div>
+        </div>
+    </div>
+
+    <div class="setup-actions">
+        <a href="https://dashboard.render.com" target="_blank" class="action-btn deploy">Open Render Dashboard</a>
+    </div>
+</div>
+{% endif %}
+
+{% if api_error %}
+<div class="error-banner card">
+    <strong>API Error:</strong> {{ api_error }}
+</div>
+{% endif %}
+
+<!-- Service Status -->
+<div class="status-card card">
+    <div class="status-header">
+        <div class="status-indicator {{ 'online' if service.suspended == 'not_suspended' else 'offline' }}"></div>
+        <div class="status-info">
+            <h2>{{ service.name or 'telegram-monitor' }}</h2>
+            <span class="status-url">{{ service.serviceDetails.url if service.serviceDetails else '' }}</span>
+        </div>
+        <div class="status-actions">
+            <button class="action-btn deploy" onclick="triggerDeploy()" {% if not api_configured %}disabled title="Configure API first"{% endif %}>Deploy</button>
+            <button class="action-btn restart" onclick="restartService()" {% if not api_configured %}disabled title="Configure API first"{% endif %}>Restart</button>
+        </div>
+    </div>
+
+    <div class="status-grid">
+        <div class="status-item">
+            <span class="label">Status</span>
+            <span class="value {{ 'success' if service.suspended == 'not_suspended' else 'error' }}">
+                {{ 'Running' if service.suspended == 'not_suspended' else service.suspended or 'Unknown' }}
+            </span>
+        </div>
+        <div class="status-item">
+            <span class="label">Region</span>
+            <span class="value">{{ service.serviceDetails.region if service.serviceDetails else 'N/A' }}</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Plan</span>
+            <span class="value">{{ service.serviceDetails.plan if service.serviceDetails else 'N/A' }}</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Runtime</span>
+            <span class="value">{{ service.serviceDetails.runtime if service.serviceDetails else 'N/A' }}</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Branch</span>
+            <span class="value">{{ service.branch or 'N/A' }}</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Auto Deploy</span>
+            <span class="value">{{ service.autoDeploy or 'N/A' }}</span>
+        </div>
+        {% if service.serviceDetails and service.serviceDetails.disk %}
+        <div class="status-item">
+            <span class="label">Disk</span>
+            <span class="value">{{ service.serviceDetails.disk.name }} ({{ service.serviceDetails.disk.sizeGB }}GB)</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Mount Path</span>
+            <span class="value">{{ service.serviceDetails.disk.mountPath }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Status message -->
+<div id="status-msg" class="status-msg" style="display:none"></div>
+
+<!-- Recent Deploys -->
+<div class="deploys-card card">
+    <div class="section-header">
+        <h2>Recent Deploys</h2>
+        <button class="action-btn small" onclick="triggerDeploy(true)" {% if not api_configured %}disabled{% endif %}>Deploy + Clear Cache</button>
+    </div>
+
+    <div class="deploys-list">
+        {% if api_configured %}
+            {% for deploy in deploys %}
+            <div class="deploy-item {{ deploy.status }}">
+                <div class="deploy-status">
+                    {% if deploy.status == 'live' %}
+                    <span class="status-icon success">✓</span>
+                    {% elif deploy.status == 'build_failed' or deploy.status == 'canceled' %}
+                    <span class="status-icon error">✗</span>
+                    {% elif deploy.status == 'building' or deploy.status == 'update_in_progress' %}
+                    <span class="status-icon pending">⏳</span>
+                    {% else %}
+                    <span class="status-icon">○</span>
+                    {% endif %}
+                    <span class="status-text">{{ deploy.status }}</span>
+                </div>
+                <div class="deploy-info">
+                    <span class="deploy-commit">{{ deploy.commit.message[:60] if deploy.commit else 'Manual deploy' }}{{ '...' if deploy.commit and deploy.commit.message|length > 60 else '' }}</span>
+                    <span class="deploy-time">{{ deploy.createdAt[:19] if deploy.createdAt else '' }}</span>
+                </div>
+                <div class="deploy-trigger">
+                    {{ deploy.trigger or '' }}
+                </div>
+            </div>
+            {% else %}
+            <div class="empty">No deploys found</div>
+            {% endfor %}
+        {% else %}
+            <div class="empty">Configure API to view deploy history</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Environment Variables -->
+<div class="env-card card">
+    <div class="section-header">
+        <h2>Environment Variables</h2>
+        <span class="env-count">{{ env_vars|length }} vars</span>
+    </div>
+
+    <div class="env-list">
+        {% if api_configured %}
+            {% for ev in env_vars %}
+            <div class="env-item">
+                <span class="env-key">{{ ev.key }}</span>
+                <span class="env-value">{{ ev.value }}</span>
+            </div>
+            {% else %}
+            <div class="empty">No environment variables</div>
+            {% endfor %}
+        {% else %}
+            <div class="empty">Configure API to manage environment variables</div>
+        {% endif %}
+    </div>
+
+    {% if api_configured %}
+    <!-- Add new env var -->
+    <div class="env-add">
+        <input type="text" id="new-env-key" placeholder="KEY">
+        <input type="text" id="new-env-value" placeholder="value">
+        <button class="action-btn small" onclick="addEnvVar()">Add</button>
+    </div>
+    {% endif %}
+</div>
+</div>
+
+<!-- Fake content -->
+<div id="fake-content" style="display:none">
+<div class="top-bar card">
+    <div class="refresh-row">
+        <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
+        <span class="refresh-time">{{ last_refresh }}</span>
+    </div>
+</div>
+<div class="tutorial-container card">
+    <h2>Smart Home Server Status</h2>
+    <div class="tutorial-list">
+        <div class="tutorial-item">
+            <h3>Home Assistant Server</h3>
+            <p>Status: Online | Uptime: 14 days | CPU: 12% | Memory: 45%</p>
+        </div>
+        <div class="tutorial-item">
+            <h3>Zigbee Hub</h3>
+            <p>Status: Connected | Devices: 24 | Last sync: 2 minutes ago</p>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar { padding: 8px; margin-bottom: 8px; }
+    .refresh-row { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--text-muted); }
+    .refresh-btn-nice { background: var(--accent); color: white; border: none; width: 26px; height: 26px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+    .refresh-btn-nice:hover { transform: rotate(180deg); background: #1d4ed8; }
+    .refresh-time { flex: 1; }
+    .dashboard-link { color: var(--accent); text-decoration: none; font-size: 11px; }
+    .dashboard-link:hover { text-decoration: underline; }
+
+    .status-card { padding: 16px; margin-bottom: 12px; }
+    .status-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .status-indicator { width: 12px; height: 12px; border-radius: 50%; }
+    .status-indicator.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+    .status-indicator.offline { background: #ef4444; }
+    .status-info { flex: 1; }
+    .status-info h2 { font-size: 16px; font-weight: 600; margin: 0; }
+    .status-url { font-size: 11px; color: var(--text-muted); }
+    .status-actions { display: flex; gap: 8px; }
+
+    .action-btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .action-btn.deploy { background: var(--accent); color: white; }
+    .action-btn.deploy:hover { background: #1d4ed8; }
+    .action-btn.restart { background: #f59e0b; color: white; }
+    .action-btn.restart:hover { background: #d97706; }
+    .action-btn.small { padding: 6px 12px; font-size: 11px; background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .action-btn.small:hover { background: var(--border); }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .action-btn:disabled:hover { transform: none; }
+
+    .status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .status-item { display: flex; flex-direction: column; gap: 2px; }
+    .status-item .label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+    .status-item .value { font-size: 13px; font-weight: 500; }
+    .status-item .value.success { color: #10b981; }
+    .status-item .value.error { color: #ef4444; }
+
+    .status-msg { padding: 10px; margin-bottom: 8px; border-radius: 6px; font-size: 12px; text-align: center; }
+    .status-msg.success { background: #d1fae5; color: #047857; }
+    .status-msg.error { background: #fef2f2; color: #dc2626; }
+    [data-theme="dark"] .status-msg.success { background: #065f46; color: #d1fae5; }
+    [data-theme="dark"] .status-msg.error { background: #7f1d1d; color: #fca5a5; }
+
+    .deploys-card, .env-card { padding: 16px; margin-bottom: 12px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-header h2 { font-size: 14px; font-weight: 600; margin: 0; }
+    .env-count { font-size: 11px; color: var(--text-muted); }
+
+    .deploys-list { display: flex; flex-direction: column; gap: 8px; }
+    .deploy-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--bg); border-radius: 6px; border-left: 3px solid var(--border); }
+    .deploy-item.live { border-left-color: #10b981; }
+    .deploy-item.build_failed, .deploy-item.canceled { border-left-color: #ef4444; }
+    .deploy-item.building, .deploy-item.update_in_progress, .deploy-item.created { border-left-color: #f59e0b; }
+
+    .deploy-status { display: flex; align-items: center; gap: 6px; min-width: 120px; }
+    .status-icon { font-size: 14px; }
+    .status-icon.success { color: #10b981; }
+    .status-icon.error { color: #ef4444; }
+    .status-icon.pending { color: #f59e0b; }
+    .status-text { font-size: 11px; font-weight: 500; text-transform: capitalize; }
+
+    .deploy-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .deploy-commit { font-size: 12px; color: var(--text); }
+    .deploy-time { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .deploy-trigger { font-size: 10px; color: var(--text-muted); min-width: 80px; text-align: right; }
+
+    .env-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; margin-bottom: 12px; }
+    .env-item { display: flex; gap: 12px; padding: 8px; background: var(--bg); border-radius: 4px; font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+    .env-key { color: var(--accent); min-width: 200px; font-weight: 500; }
+    .env-value { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .env-add { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .env-add input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; background: var(--bg); color: var(--text); }
+    .env-add input:first-child { width: 200px; font-family: 'JetBrains Mono', monospace; }
+    .env-add input:nth-child(2) { flex: 1; }
+    .env-add input:focus { outline: none; border-color: var(--accent); }
+
+    .empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px; }
+
+    /* Setup Card */
+    .setup-card { padding: 20px; margin-bottom: 12px; }
+    .setup-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .setup-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+    .setup-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .setup-step { display: flex; gap: 12px; padding: 12px; background: var(--bg); border-radius: 8px; }
+    .step-num { width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
+    .step-content { flex: 1; }
+    .step-content strong { font-size: 13px; display: block; margin-bottom: 4px; }
+    .step-content p { font-size: 12px; color: var(--text-muted); margin: 0; }
+    .step-content code { background: var(--border); padding: 2px 6px; border-radius: 4px; font-size: 11px; display: inline-block; margin-top: 4px; }
+    .step-content a { color: var(--accent); }
+
+    .setup-actions { display: flex; gap: 8px; }
+
+    .error-banner { padding: 12px 16px; margin-bottom: 12px; background: #fee2e2; color: #dc2626; font-size: 13px; }
+    [data-theme="dark"] .error-banner { background: #450a0a; color: #fca5a5; }
+
+    /* Smart Home Widget */
+    .smart-widget { padding: 10px 12px; margin-bottom: 8px; }
+    .widget-header { display: flex; align-items: center; gap: 10px; }
+    .widget-icon { font-size: 18px; }
+    .widget-title { flex: 1; font-weight: 600; font-size: 13px; }
+    .theme-toggle { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .widget-toggle { padding: 4px 12px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; cursor: pointer; }
+    .widget-toggle.on { background: #d1fae5; color: #047857; }
+    .widget-toggle.off { background: #f3f4f6; color: #6b7280; }
+    [data-theme="dark"] .widget-toggle.on { background: #065f46; color: #d1fae5; }
+    [data-theme="dark"] .widget-toggle.off { background: #374151; color: #9ca3af; }
+
+    .tutorial-container { padding: 16px; }
+    .tutorial-container h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+    .tutorial-list { display: flex; flex-direction: column; gap: 12px; }
+    .tutorial-item { padding: 12px; background: var(--bg); border-radius: 6px; }
+    .tutorial-item h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .tutorial-item p { font-size: 12px; color: var(--text-muted); }
+
+    @media (max-width: 600px) {
+        .status-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Mode toggle
+    const MODE_KEY = 'mode';
+    let isOn = localStorage.getItem(MODE_KEY) !== 'off';
+
+    function updateMode() {
+        const btn = document.getElementById('mode-btn');
+        const realContent = document.getElementById('real-content');
+        const fakeContent = document.getElementById('fake-content');
+        if (isOn) {
+            btn.classList.remove('off');
+            btn.classList.add('on');
+            btn.textContent = 'ON';
+            realContent.style.display = 'block';
+            fakeContent.style.display = 'none';
+        } else {
+            btn.classList.remove('on');
+            btn.classList.add('off');
+            btn.textContent = 'OFF';
+            realContent.style.display = 'none';
+            fakeContent.style.display = 'block';
+        }
+    }
+
+    function toggleMode() {
+        isOn = !isOn;
+        localStorage.setItem(MODE_KEY, isOn ? 'on' : 'off');
+        updateMode();
+    }
+
+    updateMode();
+
+    // Theme toggle
+    const THEME_KEY = 'theme';
+    let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
+
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            const btn = document.getElementById('theme-btn');
+            if (btn) btn.textContent = '☀️';
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            const btn = document.getElementById('theme-btn');
+            if (btn) btn.textContent = '🌙';
+        }
+    }
+
+    function toggleTheme() {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(THEME_KEY, currentTheme);
+        applyTheme(currentTheme);
+    }
+
+    applyTheme(currentTheme);
+
+    // Status message
+    function showStatus(message, isError = false) {
+        const el = document.getElementById('status-msg');
+        el.textContent = message;
+        el.className = 'status-msg ' + (isError ? 'error' : 'success');
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4000);
+    }
+
+    // Trigger deploy
+    async function triggerDeploy(clearCache = false) {
+        showStatus('Triggering deploy...');
+        try {
+            const resp = await fetch('/api/render/deploy', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({clear_cache: clearCache})
+            });
+            const data = await resp.json();
+            if (data.deploy) {
+                showStatus('Deploy triggered! Status: ' + data.deploy.status);
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showStatus('Failed to trigger deploy', true);
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, true);
+        }
+    }
+
+    // Restart service
+    async function restartService() {
+        if (!confirm('Restart the service?')) return;
+        showStatus('Restarting...');
+        try {
+            const resp = await fetch('/api/render/restart', {
+                method: 'POST'
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showStatus('Restart triggered!');
+            } else {
+                showStatus('Failed to restart', true);
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, true);
+        }
+    }
+
+    // Add env var
+    async function addEnvVar() {
+        const key = document.getElementById('new-env-key').value.trim();
+        const value = document.getElementById('new-env-value').value;
+        if (!key) {
+            showStatus('Please enter a key', true);
+            return;
+        }
+        try {
+            const resp = await fetch('/api/render/env', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({key, value})
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showStatus('Environment variable set! Restart to apply.');
+                document.getElementById('new-env-key').value = '';
+                document.getElementById('new-env-value').value = '';
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showStatus('Failed to set variable', true);
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, true);
+        }
+    }
+
+    // Auto-refresh deploy status if building
+    {% if deploys and deploys[0].status in ['building', 'update_in_progress', 'created'] %}
+    setTimeout(() => location.reload(), 10000);
+    {% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Online Status - Telegram Monitor{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history"></i> Online/Offline History</span>
+        <button class="btn btn-sm btn-outline-light" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+    <div class="card-body p-0">
+        {% if history %}
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th>Last Seen</th>
+                            <th>Recorded At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in history %}
+                        <tr>
+                            <td>{{ entry.username }}</td>
+                            <td>
+                                {% if entry.status == 'online' %}
+                                <span class="status-online">
+                                    <i class="bi bi-circle-fill"></i> Online
+                                </span>
+                                {% elif entry.status == 'offline' %}
+                                <span class="status-offline">
+                                    <i class="bi bi-circle"></i> Offline
+                                </span>
+                                {% elif entry.status == 'recently' %}
+                                <span class="status-recently">
+                                    <i class="bi bi-clock"></i> Recently
+                                </span>
+                                {% else %}
+                                <span class="text-muted">{{ entry.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="timestamp">
+                                {{ entry.last_seen or '-' }}
+                            </td>
+                            <td class="timestamp">
+                                {{ entry.timestamp }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="p-4 text-center text-muted">
+                <i class="bi bi-clock h1"></i>
+                <p>No status changes recorded yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pagination -->
+<div class="d-flex justify-content-between mt-3">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}" class="btn btn-outline-light">
+        <i class="bi bi-chevron-left"></i> Newer
+    </a>
+    {% else %}
+    <span></span>
+    {% endif %}
+
+    {% if has_more %}
+    <a href="?page={{ page + 1 }}" class="btn btn-outline-light">
+        Older <i class="bi bi-chevron-right"></i>
+    </a>
+    {% endif %}
+</div>
+
+<!-- Timeline visualization -->
+{% if history %}
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="bi bi-bar-chart"></i> Today's Activity
+    </div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-1" id="timeline">
+            {% for entry in history[:48] %}
+            <div class="rounded {% if entry.status == 'online' %}bg-success{% elif entry.status == 'offline' %}bg-danger{% else %}bg-warning{% endif %}"
+                 style="width: 20px; height: 20px;"
+                 title="{{ entry.timestamp }} - {{ entry.status }}">
+            </div>
+            {% endfor %}
+        </div>
+        <small class="text-muted mt-2 d-block">
+            <span class="status-online"><i class="bi bi-circle-fill"></i> Online</span> |
+            <span class="status-offline"><i class="bi bi-circle-fill"></i> Offline</span> |
+            <span class="status-recently"><i class="bi bi-circle-fill"></i> Recently</span>
+        </small>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh every 60 seconds
+    setTimeout(() => location.reload(), 60000);
+</script>
+{% endblock %}

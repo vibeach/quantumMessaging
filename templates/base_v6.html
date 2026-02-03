@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Automation{% endblock %}</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- Safari Specific Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Home Assistant">
+    <link rel="apple-touch-icon" href="/static/ha-icon.svg">
+
+    <!-- General PWA Meta Tags -->
+    <meta name="application-name" content="Home Assistant">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Home Assistant Automation Dashboard">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #1a1a1a;
+            --text-muted: #666666;
+            --accent: #2563eb;
+            --border: #e5e5e5;
+            --author-a: #2563eb;
+            --author-b: #1a1a1a;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f0f0f;
+            --card-bg: #1a1a1a;
+            --text: #f5f5f5;
+            --text-muted: #a0a0a0;
+            --accent: #3b82f6;
+            --border: #333333;
+            --author-a: #60a5fa;
+            --author-b: #f5f5f5;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .site-header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-inner {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 0 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .site-logo {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .site-logo svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .site-nav {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .site-nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .site-nav a:hover,
+        .site-nav a.active {
+            color: var(--accent);
+        }
+
+        .site-logo.active {
+            color: var(--accent);
+        }
+
+        .global-unread-counts {
+            display: flex;
+            gap: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .global-unread-counts .unread-her {
+            color: #fff;
+            background: #ef4444;
+            padding: 1px 5px;
+            border-radius: 8px;
+        }
+
+        .global-unread-counts .unread-me {
+            color: #fff;
+            background: #3b82f6;
+            padding: 1px 5px;
+            border-radius: 8px;
+        }
+
+        .version-switch {
+            display: flex;
+            gap: 4px;
+            background: var(--bg);
+            padding: 2px;
+            border-radius: 4px;
+        }
+
+        .version-switch a {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+        }
+
+        .version-switch a.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    {% if session.logged_in %}
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="{{ url_for('index') }}" class="site-logo {% if request.endpoint == 'index' %}active{% endif %}">
+                <svg viewBox="0 0 240 240" fill="currentColor"><path d="M120 0C53.73 0 0 53.73 0 120s53.73 120 120 120 120-53.73 120-120S186.27 0 120 0zm0 220c-55.23 0-100-44.77-100-100S64.77 20 120 20s100 44.77 100 100-44.77 100-100 100zm-30-85h-25v55h25v-55zm60 0h-25v55h25v-55zm-30-65l-50 50h25v20h50v-20h25l-50-50z"/></svg>
+                Home
+            </a>
+            <span class="global-unread-counts">
+                {% if global_her_unread > 0 %}<span class="unread-her" title="Unread from her">{{ global_her_unread }}↓</span>{% endif %}
+                {% if global_my_unread > 0 %}<span class="unread-me" title="Unread by E (blu)">{{ global_my_unread }}↑</span>{% endif %}
+            </span>
+            <nav class="site-nav">
+                <a href="{{ url_for('messages') }}" class="{% if request.endpoint == 'messages' %}active{% endif %}" style="margin-left: 8px;">Mes</a>
+                <a href="{{ url_for('message_list') }}" class="{% if request.endpoint == 'message_list' %}active{% endif %}">List</a>
+                <a href="{{ url_for('medi') }}" class="{% if request.endpoint == 'medi' or request.endpoint == 'media' %}active{% endif %}">Medi</a>
+                <a href="{{ url_for('incept_control') }}" class="{% if request.endpoint == 'incept_control' %}active{% endif %}">Incept</a>
+                <a href="{{ url_for('ai_assistant') }}" class="{% if request.endpoint == 'ai_assistant' %}active{% endif %}">AI</a>
+                <a href="{{ url_for('incept_plus') }}" class="{% if request.endpoint == 'incept_plus' %}active{% endif %}">Incept+</a>
+                <a href="{{ url_for('overview') }}" class="{% if request.endpoint == 'overview' %}active{% endif %}">Stats</a>
+                <a href="{{ url_for('state') }}" class="{% if request.endpoint == 'state' %}active{% endif %}">State</a>
+                <a href="{{ url_for('system_logs') }}" class="{% if request.endpoint == 'system_logs' %}active{% endif %}">Log</a>
+                <a href="{{ url_for('lab') }}" class="{% if request.endpoint == 'lab' %}active{% endif %}">Lab</a>
+                <a href="{{ url_for('lab2') }}" class="{% if request.endpoint == 'lab2' %}active{% endif %}">Lab2</a>
+                <a href="{{ url_for('control_room_summary') }}" class="{% if request.endpoint == 'control_room_summary' %}active{% endif %}">CR</a>
+                <a href="{{ url_for('settings_page') }}" class="{% if request.endpoint == 'settings_page' %}active{% endif %}">Set</a>
+                <a href="{{ url_for('config_editor') }}" class="{% if request.endpoint == 'config_editor' %}active{% endif %}">Cfg</a>
+                <a href="{{ url_for('render_status') }}" class="{% if request.endpoint == 'render_status' %}active{% endif %}">Rnd</a>
+                <span class="version-switch">
+                    <a href="/v3/messages" class="{% if request.endpoint == 'messages_v3' %}active{% endif %}">v3</a>
+                    <a href="/v5/messages" class="{% if request.endpoint == 'messages_v5' %}active{% endif %}">v5</a>
+                    <a href="/v6/messages" class="{% if request.endpoint == 'messages' %}active{% endif %}">v6</a>
+                </span>
+                <a href="{{ url_for('logout') }}">Exit</a>
+            </nav>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+
+    <!-- Dark mode initialization -->
+    <script>
+    (function() {
+        const theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+    })();
+    </script>
+
+    <!-- Service Worker registration - ensures push notifications and badges work on ALL pages -->
+    <script>
+    (function() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js').then(function(reg) {
+                console.log('[SW] Service Worker registered from base template');
+            }).catch(function(err) {
+                console.log('[SW] Service Worker registration failed:', err);
+            });
+        }
+    })();
+    </script>
+
+    <!-- Inactivity timeout - return to safe mode after 3 minutes -->
+    <script>
+    (function() {
+        const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+        const SAFE_PATH = '/tutorials';
+        let timeout;
+
+        function resetTimer() {
+            clearTimeout(timeout);
+            // Only set timeout if not already on tutorials page
+            if (window.location.pathname !== SAFE_PATH) {
+                timeout = setTimeout(function() {
+                    window.location.href = SAFE_PATH;
+                }, TIMEOUT_MS);
+            }
+        }
+
+        // Reset on any user activity
+        ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'].forEach(function(evt) {
+            document.addEventListener(evt, resetTimer, { passive: true });
+        });
+
+        // Start the timer
+        resetTimer();
+    })();
+    </script>
+</body>
+</html>

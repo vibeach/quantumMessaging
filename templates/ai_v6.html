@@ -1,0 +1,2375 @@
+{% extends "base_v6.html" %}
+
+{% block title %}AI Assistant{% endblock %}
+
+{% block extra_styles %}
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.page-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.refresh-time {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.provider-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    background: var(--bg);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+.provider-toggle select {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: var(--text);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.provider-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+}
+
+.provider-status.online {
+    background: #22c55e;
+}
+
+.provider-status.checking {
+    background: #f59e0b;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: var(--bg);
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.tab-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Suggestions Section */
+.suggest-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.suggest-form textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.suggest-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.suggest-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.prompt-select {
+    flex: 1;
+    min-width: 150px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.suggest-btn {
+    padding: 10px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.suggest-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.suggestion-result {
+    padding: 16px;
+    display: none;
+}
+
+.suggestion-result.visible {
+    display: block;
+}
+
+.analysis-box {
+    background: var(--bg);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border-left: 3px solid var(--accent);
+}
+
+.suggestion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.suggestion-item {
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.suggestion-item:hover {
+    border-color: var(--border);
+}
+
+.suggestion-item.selected {
+    border-color: var(--accent);
+    background: var(--card-bg);
+}
+
+.suggestion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.suggestion-type {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.suggestion-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.suggestion-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.action-btn.send {
+    background: var(--accent);
+    color: white;
+}
+
+.action-btn.edit {
+    background: var(--border);
+    color: var(--text);
+}
+
+.action-btn.vary {
+    background: #8b5cf6;
+    color: white;
+}
+
+.action-btn:hover {
+    opacity: 0.9;
+}
+
+/* Variation panel */
+.variation-panel {
+    display: none;
+    padding: 16px;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-top: 12px;
+    border: 1px solid var(--accent);
+}
+
+.variation-panel.visible {
+    display: block;
+}
+
+.variation-panel h4 {
+    margin: 0 0 12px 0;
+    font-size: 0.9rem;
+    color: var(--accent);
+}
+
+.variation-base {
+    padding: 10px;
+    background: var(--card-bg);
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+    border-left: 3px solid var(--accent);
+}
+
+.variation-context {
+    width: 100%;
+    min-height: 60px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.85rem;
+    resize: vertical;
+    margin-bottom: 12px;
+}
+
+.variation-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Edit modal for suggestions */
+.edit-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    margin-bottom: 12px;
+}
+
+/* Prompt Editor */
+.prompt-editor {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+}
+
+.prompt-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.prompt-editor-title {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.prompt-editor-textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.prompt-editor-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+/* Q&A Section */
+.qna-container {
+    display: flex;
+    flex-direction: column;
+    height: 500px;
+}
+
+.qna-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.qna-message {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.qna-message.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.qna-message.assistant {
+    align-self: flex-start;
+    background: var(--bg);
+    border-bottom-left-radius: 4px;
+}
+
+.qna-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.qna-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.qna-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.qna-send-btn {
+    padding: 10px 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+.qna-clear-btn {
+    padding: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.qna-context-settings {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+}
+
+.qna-context-settings label {
+    color: var(--text-muted);
+}
+
+.qna-context-settings select,
+.qna-context-settings input[type="number"] {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.qna-context-settings input[type="number"] {
+    width: 80px;
+}
+
+.qna-context-preview {
+    margin-left: auto;
+    padding: 6px 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    display: flex;
+    gap: 12px;
+}
+
+.qna-context-preview .stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.qna-context-preview .stat-value {
+    color: var(--text);
+    font-weight: 500;
+}
+
+/* Prompts Section */
+.prompts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+}
+
+.prompt-card {
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    border-left: 3px solid var(--border);
+}
+
+.prompt-card.default {
+    border-left-color: var(--accent);
+}
+
+.prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.prompt-name {
+    font-weight: 500;
+}
+
+.prompt-badges {
+    display: flex;
+    gap: 6px;
+}
+
+.prompt-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--border);
+}
+
+.prompt-badge.default {
+    background: var(--accent);
+    color: white;
+}
+
+.prompt-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.prompt-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.prompt-action-btn {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.prompt-action-btn:hover {
+    background: var(--bg);
+}
+
+.add-prompt-btn {
+    padding: 10px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 16px;
+}
+
+/* Pending Messages */
+.pending-section {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.pending-section h3 {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.pending-msg {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.pending-text {
+    font-size: 0.85rem;
+    flex: 1;
+}
+
+.process-btn {
+    padding: 4px 10px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+/* History */
+.history-section {
+    padding: 16px;
+}
+
+.history-section h3 {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.history-item {
+    padding: 10px;
+    background: var(--bg);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+}
+
+.history-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.tokens-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background: var(--border);
+    border-radius: 3px;
+    margin-left: 8px;
+}
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.visible {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 12px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.modal-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.modal-form input,
+.modal-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+}
+
+.modal-form textarea {
+    min-height: 150px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+}
+
+.modal-form label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.modal-btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.modal-btn.primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+}
+
+.modal-btn.secondary {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+@media (max-width: 600px) {
+    .qna-container { height: 400px; }
+    .suggestion-item { flex-direction: column; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <span class="page-title">AI Assistant</span>
+    <div class="provider-toggle">
+        <span class="provider-status checking" id="provider-status"></span>
+        <select id="provider-select" onchange="setProvider(this.value)">
+            <option value="local_tailscale" selected>Local LLM (Tailscale)</option>
+            <option value="local">Local LLM (localhost)</option>
+            <option value="cli_token">CLI Token (Max)</option>
+            <option value="cli">CLI (Local)</option>
+            <option value="anthropic">Claude API (Credits)</option>
+        </select>
+        <button class="action-btn" style="background: var(--bg); border: 1px solid var(--border); padding: 4px 8px; font-size: 0.75rem;" onclick="toggleLLMSettings()" title="LLM Settings">⚙</button>
+        <span id="provider-status-text" style="font-size: 0.7rem; color: var(--text-muted);"></span>
+    </div>
+    <span class="refresh-time">{{ last_refresh }}</span>
+</div>
+
+<!-- LLM Settings Panel -->
+<div id="llm-settings" class="card" style="display: none; margin-bottom: 16px; padding: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span style="font-weight: 500;">LLM Settings</span>
+        <button class="action-btn" style="background: var(--bg); border: 1px solid var(--border); padding: 4px 8px;" onclick="toggleLLMSettings()">✕</button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div>
+            <label style="font-size: 0.8rem; color: var(--text-muted);">Tailscale LLM URL</label>
+            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                <input type="text" id="tailscale-url" style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;" placeholder="https://your-device.ts.net/v1">
+                <button class="action-btn send" onclick="saveTailscaleUrl()">Save</button>
+                <button class="action-btn edit" onclick="testTailscaleUrl()">Test</button>
+            </div>
+        </div>
+        <div id="tailscale-test-result" style="font-size: 0.8rem; color: var(--text-muted);"></div>
+    </div>
+</div>
+
+<div class="tabs">
+    <button class="tab-btn active" onclick="showTab('suggest')">Suggestions</button>
+    <button class="tab-btn" onclick="showTab('qna')">Q&A</button>
+    <button class="tab-btn" onclick="showTab('prompts')">Prompts</button>
+</div>
+
+<!-- Suggestions Tab -->
+<div id="tab-suggest" class="tab-content active">
+    {% if pending_messages %}
+    <div class="pending-section card">
+        <h3>Messages Needing Suggestions ({{ pending_messages|length }})</h3>
+        {% for msg in pending_messages %}
+        <div class="pending-msg">
+            <span class="pending-text">{{ msg.text[:60] }}{% if msg.text|length > 60 %}...{% endif %}</span>
+            <button class="process-btn" onclick="generateForMessage({{ msg.message_id }}, '{{ msg.text|replace("'", "\\'") }}')">Generate</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="suggest-form card">
+        <!-- Message selector -->
+        <div style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Her recent messages:</span>
+                <button class="action-btn" style="background: var(--bg); border: 1px solid var(--border); padding: 4px 8px; font-size: 0.75rem;" onclick="toggleMessageSelector()">
+                    <span id="msg-selector-toggle">Hide</span>
+                </button>
+            </div>
+            <div id="message-selector" style="display: flex; flex-direction: column; gap: 4px; max-height: 150px; overflow-y: auto;">
+                {% for msg in recent_incoming %}
+                <div class="msg-select-item" data-text="{{ msg.text|e }}" style="display: flex; gap: 8px; align-items: center; padding: 6px 8px; background: var(--bg); border-radius: 4px; cursor: pointer;">
+                    <span style="flex: 1; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ msg.text[:80] }}{% if msg.text|length > 80 %}...{% endif %}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap;">{{ msg.timestamp[5:16] if msg.timestamp else '' }}</span>
+                    <button class="action-btn send" style="padding: 2px 8px; font-size: 0.7rem;">Select</button>
+                </div>
+                {% else %}
+                <div style="color: var(--text-muted); font-size: 0.8rem; padding: 8px;">No recent messages</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <textarea id="suggest-input" placeholder="Her message to reply to (edit if needed)..."></textarea>
+        <div class="suggest-controls">
+            <select id="prompt-select" class="prompt-select" onchange="loadPromptPreview()">
+                {% for p in prompts %}
+                <option value="{{ p.id }}" {% if p.is_default %}selected{% endif %}>
+                    {{ p.name }}{% if p.is_default %} (default){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <button class="action-btn edit" onclick="togglePromptEditor()" title="View/Edit Prompt" style="padding: 8px 10px;">⚙</button>
+            <select id="num-suggestions" class="prompt-select" style="width: 55px;" title="Number of suggestions">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="5">5</option>
+                <option value="7">7</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+            </select>
+            <select id="context-select" class="prompt-select" style="width: 100px;">
+                <option value="msgs:25">25 msgs</option>
+                <option value="msgs:50" selected>50 msgs</option>
+                <option value="msgs:100">100 msgs</option>
+                <option value="msgs:200">200 msgs</option>
+                <option value="msgs:500">500 msgs</option>
+                <option value="days:1">1 day</option>
+                <option value="days:3">3 days</option>
+                <option value="days:7">7 days</option>
+                <option value="days:14">14 days</option>
+                <option value="days:30">30 days</option>
+            </select>
+            <button class="suggest-btn" id="suggest-btn" onclick="generateSuggestionsStream()">Get Suggestions</button>
+        </div>
+
+        <!-- Inline Prompt Editor -->
+        <div id="prompt-editor" class="prompt-editor" style="display: none;">
+            <div class="prompt-editor-header">
+                <span class="prompt-editor-title">Editing: <strong id="prompt-editor-name">Balanced</strong></span>
+                <button class="action-btn edit" onclick="togglePromptEditor()" style="padding: 4px 8px;">✕</button>
+            </div>
+            <textarea id="prompt-editor-content" class="prompt-editor-textarea" placeholder="System prompt content..."></textarea>
+            <div class="prompt-editor-actions">
+                <button class="action-btn send" onclick="generateWithEditedPrompt()">Use Once</button>
+                <button class="action-btn edit" onclick="savePromptChanges()">Save Changes</button>
+                <button class="action-btn vary" onclick="showSaveAsNewModal()">Save as New</button>
+                <button class="action-btn" style="background: var(--bg); border: 1px solid var(--border);" onclick="resetPromptEditor()">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="suggestion-result" class="suggestion-result card">
+        <!-- Processing Info Box -->
+        <div id="processing-info" style="display: none; margin-bottom: 12px; padding: 10px; background: var(--bg); border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 500;">Request Details</span>
+                <span id="processing-status" style="color: #f59e0b;">Processing...</span>
+            </div>
+            <div id="processing-details" style="color: var(--text-muted); line-height: 1.6;"></div>
+        </div>
+        <div id="analysis-box" class="analysis-box"></div>
+        <div id="suggestion-list" class="suggestion-list"></div>
+
+        <!-- Old Suggestions (hidden by default) -->
+        <div id="old-suggestions-toggle" style="display: none; margin-top: 12px;">
+            <button class="action-btn" style="background: var(--bg); border: 1px solid var(--border); width: 100%;" onclick="toggleOldSuggestions()">
+                <span id="old-toggle-text">Show previous suggestions</span> (<span id="old-count">0</span>)
+            </button>
+        </div>
+        <div id="old-suggestions-list" class="suggestion-list" style="display: none; margin-top: 8px; opacity: 0.7;"></div>
+
+        <!-- History toggle -->
+        <div style="margin-top: 12px;">
+            <button class="action-btn" style="background: var(--bg); border: 1px solid var(--border); width: 100%; font-size: 0.8rem;" onclick="toggleHistory()">
+                <span id="history-toggle-text">Show history</span> (<span id="history-count">0</span>)
+            </button>
+        </div>
+        <div id="history-list" style="display: none; margin-top: 8px; max-height: 300px; overflow-y: auto; font-size: 0.75rem; background: var(--bg); border-radius: 6px; padding: 8px;"></div>
+
+        <!-- Variation Panel -->
+        <div id="variation-panel" class="variation-panel">
+            <h4>Create Variations</h4>
+            <div class="variation-base" id="variation-base"></div>
+            <textarea id="variation-context" class="variation-context" placeholder="Add context or direction for variations (e.g., 'make it more playful', 'add a question at the end', 'shorter version')..."></textarea>
+            <div class="variation-actions">
+                <button class="action-btn send" onclick="generateVariations()">Generate Variations</button>
+                <button class="action-btn edit" onclick="closeVariationPanel()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    {% if suggestions %}
+    <div class="history-section card">
+        <h3>Recent Requests</h3>
+        {% for s in suggestions[:5] %}
+        <div class="history-item" style="cursor: pointer;" onclick="loadHistoricSuggestion('{{ s.input_text|default('')|e }}')">
+            <div class="history-meta">
+                {{ s.created_at[5:16] if s.created_at else '' }}
+                <span class="tokens-badge">{{ s.tokens_used or 0 }} tok</span>
+                {% if s.prompt_name %}<span class="tokens-badge">{{ s.prompt_name }}</span>{% endif %}
+                {% if s.context_used %}<span class="tokens-badge">{{ s.context_used }}</span>{% endif %}
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);">{{ s.input_text[:80] if s.input_text else 'No input saved' }}{% if s.input_text and s.input_text|length > 80 %}...{% endif %}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Q&A Tab -->
+<div id="tab-qna" class="tab-content">
+    <div class="qna-container card">
+        <!-- Context Settings -->
+        <div class="qna-context-settings">
+            <label>Context:</label>
+            <select id="qna-context-select" class="prompt-select" style="width: 100px;">
+                <option value="msgs:50" selected>50 msgs</option>
+                <option value="msgs:100">100 msgs</option>
+                <option value="msgs:200">200 msgs</option>
+                <option value="days:7">7 days</option>
+                <option value="days:14">14 days</option>
+                <option value="days:30">30 days</option>
+            </select>
+        </div>
+        <div class="qna-messages" id="qna-messages">
+            {% if conversation %}
+                {% for msg in conversation %}
+                <div class="qna-message {{ msg.role }}">{{ msg.content }}</div>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                    Ask questions about your conversation history.<br>
+                    e.g., "What topics do we discuss most?" or "How does she usually respond to..."
+                </div>
+            {% endif %}
+        </div>
+        <div class="qna-input-row">
+            <input type="text" id="qna-input" class="qna-input" placeholder="Ask about the conversation...">
+            <button class="qna-send-btn" onclick="askQuestion()">Ask</button>
+            <button class="qna-clear-btn" onclick="clearConversation()" title="Clear history">Clear</button>
+        </div>
+    </div>
+</div>
+
+<!-- Prompts Tab -->
+<div id="tab-prompts" class="tab-content">
+    <div class="prompts-list card">
+        {% for p in prompts %}
+        <div class="prompt-card {% if p.is_default %}default{% endif %}">
+            <div class="prompt-header">
+                <span class="prompt-name">{{ p.name }}</span>
+                <div class="prompt-badges">
+                    {% if p.is_default %}<span class="prompt-badge default">Default</span>{% endif %}
+                    {% if not p.is_active %}<span class="prompt-badge">Inactive</span>{% endif %}
+                </div>
+            </div>
+            <div class="prompt-desc">{{ p.description or 'No description' }}</div>
+            <div class="prompt-actions">
+                <button class="prompt-action-btn" onclick="editPrompt({{ p.id }})">Edit</button>
+                <button class="prompt-action-btn" onclick="setDefaultPrompt({{ p.id }})">Set Default</button>
+                <button class="prompt-action-btn" onclick="deletePrompt({{ p.id }})">Delete</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <button class="add-prompt-btn" onclick="showAddPromptModal()">+ Add New Prompt</button>
+
+    {% if summaries %}
+    <div class="history-section card" style="margin-top: 16px;">
+        <h3>Conversation Summaries</h3>
+        {% for s in summaries %}
+        <div class="history-item">
+            <div class="history-meta">{{ s.start_date }} to {{ s.end_date }} ({{ s.messages_covered }} messages)</div>
+            <div>{{ s.summary[:150] }}...</div>
+            {% if s.key_facts %}<div style="margin-top: 6px; font-size: 0.8rem; color: var(--accent);">{{ s.key_facts }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        <button class="suggest-btn" style="margin-top: 12px;" onclick="generateSummary()">Generate New Summary</button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Edit Prompt Modal -->
+<div id="prompt-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title" id="modal-title">Add Prompt</span>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form class="modal-form" id="prompt-form">
+            <input type="hidden" id="prompt-id">
+            <label>Name</label>
+            <input type="text" id="prompt-name" required placeholder="e.g., Playful">
+            <label>Description</label>
+            <input type="text" id="prompt-desc" placeholder="Brief description of this style">
+            <label>System Prompt</label>
+            <textarea id="prompt-system" required placeholder="Instructions for the AI..."></textarea>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn secondary" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="modal-btn primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Suggestion Modal -->
+<div id="edit-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title">Edit & Send</span>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <textarea id="edit-text" class="edit-textarea" placeholder="Edit your message..."></textarea>
+        <div class="modal-actions">
+            <button type="button" class="modal-btn secondary" onclick="closeEditModal()">Cancel</button>
+            <button type="button" class="modal-btn primary" onclick="sendEditedMessage()">Send</button>
+        </div>
+    </div>
+</div>
+
+<!-- Save as New Prompt Modal -->
+<div id="save-as-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title">Save as New Prompt</span>
+            <button class="modal-close" onclick="closeSaveAsModal()">&times;</button>
+        </div>
+        <div class="modal-form">
+            <label>Prompt Name</label>
+            <input type="text" id="save-as-name" placeholder="e.g., My Custom Style">
+            <label>Description</label>
+            <input type="text" id="save-as-desc" placeholder="Brief description of this style">
+            <div class="modal-actions">
+                <button type="button" class="modal-btn secondary" onclick="closeSaveAsModal()">Cancel</button>
+                <button type="button" class="modal-btn primary" onclick="saveAsNewPrompt()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// LLM Settings
+function toggleLLMSettings() {
+    const panel = document.getElementById('llm-settings');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        loadLLMSettings();
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+async function loadLLMSettings() {
+    try {
+        const resp = await fetch('/api/ai/llm-settings');
+        if (!resp.ok) {
+            console.error('Failed to load LLM settings:', resp.status);
+            return;
+        }
+        const data = await resp.json();
+        const urlInput = document.getElementById('tailscale-url');
+        if (urlInput && data.tailscale_url) {
+            // Clean any invisible characters from the loaded URL
+            urlInput.value = data.tailscale_url.replace(/[^\x20-\x7E]/g, '').trim();
+        }
+    } catch (e) {
+        console.error('Failed to load LLM settings:', e);
+    }
+}
+
+async function saveTailscaleUrl() {
+    const inputEl = document.getElementById('tailscale-url');
+    const url = inputEl.value.trim();
+    if (!url) return alert('URL cannot be empty');
+
+    // Clean the URL - remove any invisible characters
+    const cleanUrl = url.replace(/[^\x20-\x7E]/g, '').trim();
+    inputEl.value = cleanUrl;
+
+    const resultEl = document.getElementById('tailscale-test-result');
+    resultEl.innerHTML = '<span style="color: var(--text-muted);">Saving...</span>';
+
+    try {
+        const resp = await fetch('/api/ai/llm-settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tailscale_url: cleanUrl})
+        });
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
+        const data = await resp.json();
+        if (data.success) {
+            resultEl.innerHTML = '<span style="color: #22c55e;">✓ Saved</span>';
+            checkProviderStatus();  // Refresh status
+        } else {
+            resultEl.innerHTML = `<span style="color: #ef4444;">Error: ${data.error || 'Unknown error'}</span>`;
+        }
+    } catch (e) {
+        console.error('Save error:', e);
+        resultEl.innerHTML = `<span style="color: #ef4444;">Error: ${e.message || 'Failed to save'}</span>`;
+    }
+}
+
+async function testTailscaleUrl() {
+    const inputEl = document.getElementById('tailscale-url');
+    const url = inputEl.value.trim();
+    if (!url) return alert('URL cannot be empty');
+
+    // Clean the URL - remove any invisible characters
+    const cleanUrl = url.replace(/[^\x20-\x7E]/g, '').trim();
+    inputEl.value = cleanUrl;
+
+    const resultEl = document.getElementById('tailscale-test-result');
+    resultEl.innerHTML = '<span style="color: var(--text-muted);">Testing...</span>';
+
+    try {
+        const resp = await fetch('/api/ai/llm-settings/test', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url: cleanUrl})
+        });
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
+        const data = await resp.json();
+        if (data.available) {
+            resultEl.innerHTML = `<span style="color: #22c55e;">✓ Connected! Model: ${data.model || 'Unknown'}</span>`;
+        } else {
+            resultEl.innerHTML = `<span style="color: #ef4444;">✗ ${data.error || 'Connection failed'}</span>`;
+        }
+    } catch (e) {
+        console.error('Test error:', e);
+        resultEl.innerHTML = `<span style="color: #ef4444;">✗ ${e.message || 'Connection failed'}</span>`;
+    }
+}
+
+// Provider management
+async function checkProviderStatus() {
+    const statusEl = document.getElementById('provider-status');
+    const statusTextEl = document.getElementById('provider-status-text');
+    const selectEl = document.getElementById('provider-select');
+    statusEl.className = 'provider-status checking';
+    statusTextEl.textContent = 'checking...';
+
+    try {
+        const resp = await fetch('/api/ai/provider');
+        const data = await resp.json();
+
+        // Map providers to availability
+        const availabilityMap = {
+            'local': data.local?.available,
+            'local_tailscale': data.local_tailscale?.available,
+            'anthropic': data.anthropic?.available,
+            'cli': data.cli?.available,
+            'cli_token': data.cli_token?.available
+        };
+
+        // Disable unavailable options (order matches select dropdown)
+        selectEl.options[0].disabled = !data.local_tailscale?.available; // local_tailscale
+        selectEl.options[1].disabled = !data.local?.available;           // local (localhost)
+        selectEl.options[2].disabled = !data.cli_token?.available;       // cli_token
+        selectEl.options[3].disabled = !data.cli?.available;             // cli
+        selectEl.options[4].disabled = !data.anthropic?.available;       // anthropic
+
+        // RESPECT the persisted provider from database
+        // data.current is already properly set (including 'local_tailscale' distinction)
+        const currentProvider = data.current || 'local_tailscale';
+        const currentAvailable = availabilityMap[currentProvider];
+
+        // Set dropdown to match persisted selection
+        selectEl.value = currentProvider;
+
+        // Update status indicator based on current provider's availability
+        statusEl.className = 'provider-status ' + (currentAvailable ? 'online' : '');
+
+        // Show status text
+        if (currentAvailable) {
+            statusTextEl.textContent = '';
+        } else {
+            statusTextEl.textContent = 'offline';
+            statusTextEl.style.color = '#ef4444';
+        }
+
+        console.log('Provider status loaded:', currentProvider, 'available:', currentAvailable);
+
+    } catch (e) {
+        console.error('Failed to check provider status:', e);
+        statusEl.className = 'provider-status';
+        statusTextEl.textContent = 'error';
+        statusTextEl.style.color = '#ef4444';
+    }
+}
+
+async function setProvider(value) {
+    const statusEl = document.getElementById('provider-status');
+    const statusTextEl = document.getElementById('provider-status-text');
+    statusEl.className = 'provider-status checking';
+    statusTextEl.textContent = 'connecting...';
+    statusTextEl.style.color = 'var(--text-muted)';
+
+    let provider = value;  // Pass the value directly
+    let useTailscale = false;
+
+    // Handle special case for local_tailscale
+    if (value === 'local_tailscale') {
+        provider = 'local';
+        useTailscale = true;
+    }
+
+    try {
+        const resp = await fetch('/api/ai/provider', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({provider, use_tailscale: useTailscale})
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            statusEl.className = 'provider-status';
+            statusTextEl.textContent = 'failed';
+            statusTextEl.style.color = '#ef4444';
+            // Revert to first available
+            checkProviderStatus();
+        } else {
+            statusEl.className = 'provider-status online';
+            statusTextEl.textContent = '';
+        }
+    } catch (e) {
+        console.error('Failed to set provider:', e);
+        statusEl.className = 'provider-status';
+        statusTextEl.textContent = 'error';
+        statusTextEl.style.color = '#ef4444';
+    }
+}
+
+// Message selector functions
+function selectMessage(el) {
+    const text = el.dataset.text;
+    if (!text) return;
+
+    // Highlight selected
+    document.querySelectorAll('.msg-select-item').forEach(item => {
+        item.style.border = '2px solid transparent';
+    });
+    el.style.border = '2px solid var(--accent)';
+
+    // Put text in input (decode HTML entities)
+    const textarea = document.getElementById('suggest-input');
+    const tmp = document.createElement('div');
+    tmp.innerHTML = text;
+    textarea.value = tmp.textContent || tmp.innerText;
+}
+
+function toggleMessageSelector() {
+    const selector = document.getElementById('message-selector');
+    const toggle = document.getElementById('msg-selector-toggle');
+    if (selector.style.display === 'none') {
+        selector.style.display = 'flex';
+        toggle.textContent = 'Hide';
+    } else {
+        selector.style.display = 'none';
+        toggle.textContent = 'Show';
+    }
+}
+
+// Check provider status on load and auto-select first message
+document.addEventListener('DOMContentLoaded', () => {
+    checkProviderStatus();
+    loadPromptPreview();
+
+    // Add click handlers to message selector items
+    document.querySelectorAll('.msg-select-item').forEach(item => {
+        item.addEventListener('click', () => selectMessage(item));
+    });
+
+    // Auto-populate with latest message from her
+    const firstMsg = document.querySelector('.msg-select-item');
+    if (firstMsg) {
+        selectMessage(firstMsg);
+    }
+});
+
+// Prompt Editor state
+let currentPromptData = null;
+let originalPromptContent = '';
+
+async function loadPromptPreview() {
+    const promptId = document.getElementById('prompt-select').value;
+    try {
+        const resp = await fetch('/api/ai/prompts');
+        const prompts = await resp.json();
+        const prompt = prompts.find(p => p.id == promptId);
+        if (prompt) {
+            currentPromptData = prompt;
+            originalPromptContent = prompt.system_prompt;
+            document.getElementById('prompt-editor-name').textContent = prompt.name;
+            document.getElementById('prompt-editor-content').value = prompt.system_prompt;
+        }
+    } catch (e) {
+        console.error('Failed to load prompt:', e);
+    }
+}
+
+function togglePromptEditor() {
+    const editor = document.getElementById('prompt-editor');
+    if (editor.style.display === 'none') {
+        loadPromptPreview();
+        editor.style.display = 'block';
+    } else {
+        editor.style.display = 'none';
+    }
+}
+
+function resetPromptEditor() {
+    document.getElementById('prompt-editor-content').value = originalPromptContent;
+}
+
+async function savePromptChanges() {
+    if (!currentPromptData) return alert('No prompt loaded');
+
+    const newContent = document.getElementById('prompt-editor-content').value.trim();
+    if (!newContent) return alert('Prompt cannot be empty');
+
+    try {
+        const resp = await fetch(`/api/ai/prompts/${currentPromptData.id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                system_prompt: newContent
+            })
+        });
+
+        if (resp.ok) {
+            originalPromptContent = newContent;
+            currentPromptData.system_prompt = newContent;
+            alert('Prompt saved!');
+        } else {
+            alert('Failed to save prompt');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function showSaveAsNewModal() {
+    document.getElementById('save-as-name').value = '';
+    document.getElementById('save-as-desc').value = '';
+    document.getElementById('save-as-modal').classList.add('visible');
+}
+
+function closeSaveAsModal() {
+    document.getElementById('save-as-modal').classList.remove('visible');
+}
+
+async function generateWithEditedPrompt() {
+    const text = document.getElementById('suggest-input').value.trim();
+    if (!text) return alert('Please enter a message first');
+
+    const customPrompt = document.getElementById('prompt-editor-content').value.trim();
+    console.log('Custom prompt length:', customPrompt.length);
+    console.log('Custom prompt preview:', customPrompt.substring(0, 100) + '...');
+    if (!customPrompt) return alert('Prompt content is empty');
+
+    const numSuggestions = document.getElementById('num-suggestions').value;
+    const contextSelect = document.getElementById('context-select').value;
+    const [contextMode, contextValue] = contextSelect.split(':');
+    const btn = document.getElementById('suggest-btn');
+    const resultDiv = document.getElementById('suggestion-result');
+    const listDiv = document.getElementById('suggestion-list');
+    const analysisBox = document.getElementById('analysis-box');
+
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    closeVariationPanel();
+    togglePromptEditor();  // Close the editor
+
+    // Move current suggestions to old suggestions
+    if (currentSuggestions.length > 0) {
+        oldSuggestions = [...currentSuggestions.map(s => ({...s, time: currentGenerationTime})), ...oldSuggestions];
+        updateOldSuggestionsDisplay();
+    }
+
+    resultDiv.classList.add('visible');
+    listDiv.innerHTML = '<div style="color: var(--text-muted); padding: 12px;">Generating with custom prompt...</div>';
+    analysisBox.style.display = 'none';
+    currentSuggestions = [];
+    addedIndices = new Set();
+    currentGenerationTime = formatTime(new Date());
+
+    logHistory('generate', { input: text, prompt: 'Custom (one-time)' });
+
+    // Build request body based on context mode
+    const requestBody = {
+        text,
+        custom_prompt: customPrompt,
+        num_suggestions: parseInt(numSuggestions)
+    };
+    if (contextMode === 'days') {
+        requestBody.context_days = parseInt(contextValue);
+    } else {
+        requestBody.context_limit = parseInt(contextValue);
+    }
+
+    try {
+        const response = await fetch('/api/ai/suggest/stream', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(requestBody)
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let firstSuggestion = true;
+
+        while (true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, {stream: true});
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+
+                        if (data.error) {
+                            listDiv.innerHTML = `<div style="color: #ef4444; padding: 12px;">Error: ${data.error}</div>`;
+                            continue;
+                        }
+
+                        if (data.type === 'analysis') {
+                            analysisBox.textContent = data.text;
+                            analysisBox.style.display = 'block';
+                        } else if (data.type === 'suggestion') {
+                            if (addedIndices.has(data.index)) continue;
+                            addedIndices.add(data.index);
+
+                            if (firstSuggestion) {
+                                listDiv.innerHTML = '';
+                                firstSuggestion = false;
+                            }
+
+                            currentSuggestions[data.index] = { type: data.label, text: data.text };
+                            logHistory('received', { label: data.label, text: data.text.substring(0, 50) + '...' });
+
+                            const div = document.createElement('div');
+                            div.className = 'suggestion-item';
+                            div.dataset.index = data.index;
+                            div.onclick = (e) => {
+                                if (!e.target.classList.contains('action-btn')) selectSuggestion(data.index);
+                            };
+
+                            const escapedText = data.text.replace(/`/g, '\\`').replace(/\$/g, '\\$');
+                            div.innerHTML = `
+                                <div class="suggestion-header">
+                                    <span class="suggestion-type">${data.label}</span>
+                                    <span style="font-size: 0.7rem; color: var(--text-muted);">${currentGenerationTime}</span>
+                                </div>
+                                <div class="suggestion-text">${data.text}</div>
+                                <div class="suggestion-actions">
+                                    <button class="action-btn send" onclick="sendMessage(\`${escapedText}\`)">Send</button>
+                                    <button class="action-btn edit" onclick="editMessage(\`${escapedText}\`)">Edit & Send</button>
+                                    <button class="action-btn vary" onclick="showVariationPanel(${data.index})">Variations</button>
+                                </div>
+                            `;
+                            listDiv.appendChild(div);
+                        } else if (data.type === 'done') {
+                            if (firstSuggestion) {
+                                listDiv.innerHTML = '<div style="color: var(--text-muted); padding: 12px;">No suggestions parsed.</div>';
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        listDiv.innerHTML = `<div style="color: #ef4444; padding: 12px;">Error: ${err.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Get Suggestions';
+    }
+}
+
+async function saveAsNewPrompt() {
+    const name = document.getElementById('save-as-name').value.trim();
+    const desc = document.getElementById('save-as-desc').value.trim();
+    const content = document.getElementById('prompt-editor-content').value.trim();
+
+    if (!name) return alert('Please enter a name');
+    if (!content) return alert('Prompt content cannot be empty');
+
+    try {
+        const resp = await fetch('/api/ai/prompts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: name,
+                description: desc,
+                system_prompt: content
+            })
+        });
+
+        if (resp.ok) {
+            const newPrompt = await resp.json();
+            closeSaveAsModal();
+
+            // Add to dropdown and select it
+            const select = document.getElementById('prompt-select');
+            const option = document.createElement('option');
+            option.value = newPrompt.id;
+            option.textContent = name;
+            select.appendChild(option);
+            select.value = newPrompt.id;
+
+            // Update editor state
+            currentPromptData = newPrompt;
+            originalPromptContent = content;
+            document.getElementById('prompt-editor-name').textContent = name;
+
+            alert('New prompt created!');
+        } else {
+            alert('Failed to create prompt');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Tab switching
+function showTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+    document.getElementById(`tab-${tabId}`).classList.add('active');
+}
+
+// Store current suggestions for variation generation
+let currentSuggestions = [];
+let selectedSuggestionText = '';
+let oldSuggestions = [];  // Store previous suggestions
+let currentGenerationTime = '';  // Timestamp for current batch
+let suggestionHistory = [];  // Full history of all activity
+let addedIndices = new Set();  // Track which indices we've added to prevent duplicates
+
+function logHistory(action, data) {
+    suggestionHistory.unshift({
+        time: new Date().toLocaleString(),
+        action: action,
+        ...data
+    });
+    updateHistoryDisplay();
+}
+
+function updateHistoryDisplay() {
+    const historyList = document.getElementById('history-list');
+    const historyCount = document.getElementById('history-count');
+
+    historyCount.textContent = suggestionHistory.length;
+
+    if (suggestionHistory.length === 0) {
+        historyList.innerHTML = '<div style="color: var(--text-muted); padding: 8px;">No activity yet</div>';
+        return;
+    }
+
+    historyList.innerHTML = suggestionHistory.map(h => {
+        let details = '';
+        if (h.input) details = `Input: "${h.input.substring(0, 40)}..."`;
+        else if (h.text) details = `"${h.text.substring(0, 50)}..."`;
+        else if (h.label) details = `${h.label}: "${(h.text || '').substring(0, 40)}..."`;
+        else if (h.original) details = `Editing: "${h.original.substring(0, 40)}..."`;
+        else if (h.base) details = `Base: "${h.base.substring(0, 40)}..."`;
+        else if (h.error) details = `Error: ${h.error}`;
+
+        const actionColors = {
+            'generate': 'var(--accent)',
+            'received': '#22c55e',
+            'send': '#f59e0b',
+            'sent_success': '#22c55e',
+            'sent_failed': '#ef4444',
+            'edit_opened': '#8b5cf6',
+            'variation_started': '#8b5cf6'
+        };
+
+        return `
+            <div style="padding: 6px 8px; border-bottom: 1px solid var(--border);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: ${actionColors[h.action] || 'var(--text)'}; font-weight: 500;">${h.action}</span>
+                    <span style="color: var(--text-muted); font-size: 0.7rem;">${h.time}</span>
+                </div>
+                <div style="color: var(--text-muted); margin-top: 2px;">${details}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleHistory() {
+    const historyList = document.getElementById('history-list');
+    const toggleText = document.getElementById('history-toggle-text');
+    if (historyList.style.display === 'none') {
+        historyList.style.display = 'block';
+        toggleText.textContent = 'Hide history';
+    } else {
+        historyList.style.display = 'none';
+        toggleText.textContent = 'Show history';
+    }
+}
+
+function toggleOldSuggestions() {
+    const oldList = document.getElementById('old-suggestions-list');
+    const toggleText = document.getElementById('old-toggle-text');
+    if (oldList.style.display === 'none') {
+        oldList.style.display = 'block';
+        toggleText.textContent = 'Hide previous suggestions';
+    } else {
+        oldList.style.display = 'none';
+        toggleText.textContent = 'Show previous suggestions';
+    }
+}
+
+function formatTime(date) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function updateOldSuggestionsDisplay() {
+    const oldList = document.getElementById('old-suggestions-list');
+    const oldToggle = document.getElementById('old-suggestions-toggle');
+    const oldCount = document.getElementById('old-count');
+
+    if (oldSuggestions.length === 0) {
+        oldToggle.style.display = 'none';
+        oldList.style.display = 'none';
+        return;
+    }
+
+    oldToggle.style.display = 'block';
+    oldCount.textContent = oldSuggestions.length;
+
+    oldList.innerHTML = '';
+    oldSuggestions.forEach((s, idx) => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        const escapedText = s.text.replace(/`/g, '\\`').replace(/\$/g, '\\$');
+
+        div.innerHTML = `
+            <div class="suggestion-header">
+                <span class="suggestion-type">${s.type || 'Suggestion'}</span>
+                <span style="font-size: 0.7rem; color: var(--text-muted);">${s.time || ''}</span>
+            </div>
+            <div class="suggestion-text">${s.text}</div>
+            <div class="suggestion-actions">
+                <button class="action-btn send" onclick="sendMessage(\`${escapedText}\`)">Send</button>
+                <button class="action-btn edit" onclick="editMessage(\`${escapedText}\`)">Edit</button>
+            </div>
+        `;
+        oldList.appendChild(div);
+    });
+}
+
+// Generate suggestions using streaming endpoint
+async function generateSuggestionsStream() {
+    const text = document.getElementById('suggest-input').value.trim();
+    if (!text) return alert('Please enter a message');
+
+    const promptId = document.getElementById('prompt-select').value;
+    const numSuggestions = document.getElementById('num-suggestions').value;
+    const contextSelect = document.getElementById('context-select').value;
+    const [contextMode, contextValue] = contextSelect.split(':');
+    const btn = document.getElementById('suggest-btn');
+    const resultDiv = document.getElementById('suggestion-result');
+    const listDiv = document.getElementById('suggestion-list');
+    const analysisBox = document.getElementById('analysis-box');
+    const processingInfo = document.getElementById('processing-info');
+    const processingDetails = document.getElementById('processing-details');
+    const processingStatus = document.getElementById('processing-status');
+
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    closeVariationPanel();
+
+    // Move current suggestions to old suggestions (if any)
+    if (currentSuggestions.length > 0) {
+        oldSuggestions = [...currentSuggestions.map(s => ({...s, time: currentGenerationTime})), ...oldSuggestions];
+        updateOldSuggestionsDisplay();
+    }
+
+    // Show result area and processing info
+    resultDiv.classList.add('visible');
+    processingInfo.style.display = 'block';
+    processingStatus.textContent = 'Fetching context...';
+    processingStatus.style.color = '#f59e0b';
+    listDiv.innerHTML = '';
+    analysisBox.style.display = 'none';
+    currentSuggestions = [];
+    addedIndices = new Set();
+    currentGenerationTime = formatTime(new Date());
+
+    // Fetch context preview first
+    const mode = contextMode === 'days' ? 'days' : 'messages';
+    let preview = null;
+    try {
+        const previewResp = await fetch(`/api/ai/context-preview?mode=${mode}&value=${contextValue}`);
+        preview = await previewResp.json();
+    } catch (e) {
+        console.error('Failed to fetch context preview:', e);
+    }
+
+    // Show processing details
+    const startTime = Date.now();
+    const promptName = document.getElementById('prompt-select').selectedOptions[0]?.text || 'Unknown';
+    const tokensStr = preview ? `~${preview.token_estimate > 1000 ? (preview.token_estimate/1000).toFixed(1) + 'K' : preview.token_estimate} tokens` : 'calculating...';
+    const msgsStr = preview ? `${preview.message_count} messages` : '...';
+    const ramStr = preview ? `~${preview.total_ram_gb}GB RAM` : '';
+
+    processingDetails.innerHTML = `
+        <div>Context: <strong>${msgsStr}</strong> (${contextMode === 'days' ? contextValue + ' days' : contextValue + ' requested'})</div>
+        <div>Tokens: <strong>${tokensStr}</strong> ${ramStr}</div>
+        <div>Prompt: ${promptName} | Suggestions: ${numSuggestions}</div>
+        <div style="margin-top: 4px; font-size: 0.7rem;">Started: ${new Date().toLocaleTimeString()}</div>
+    `;
+    processingStatus.textContent = 'Sending to LLM...';
+
+    // Log to history
+    logHistory('generate', { input: text, prompt: promptName });
+
+    // Build request body based on context mode
+    const requestBody = {
+        text,
+        prompt_id: parseInt(promptId),
+        num_suggestions: parseInt(numSuggestions)
+    };
+    if (contextMode === 'days') {
+        requestBody.context_days = parseInt(contextValue);
+    } else {
+        requestBody.context_limit = parseInt(contextValue);
+    }
+    console.log('Sending suggestion request:', requestBody);
+
+    try {
+        const response = await fetch('/api/ai/suggest/stream', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(requestBody)
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let firstSuggestion = true;
+
+        while (true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, {stream: true});
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+
+                        if (data.error) {
+                            listDiv.innerHTML = `<div style="color: #ef4444; padding: 12px;">Error: ${data.error}</div>`;
+                            continue;
+                        }
+
+                        if (data.type === 'analysis') {
+                            analysisBox.textContent = data.text;
+                            analysisBox.style.display = 'block';
+                        } else if (data.type === 'suggestion') {
+                            // Skip if we've already added this index
+                            if (addedIndices.has(data.index)) {
+                                continue;
+                            }
+                            addedIndices.add(data.index);
+
+                            if (firstSuggestion) {
+                                listDiv.innerHTML = '';
+                                firstSuggestion = false;
+                            }
+
+                            // Add to our array
+                            currentSuggestions[data.index] = {
+                                type: data.label,
+                                text: data.text
+                            };
+
+                            // Log suggestion received
+                            logHistory('received', { label: data.label, text: data.text.substring(0, 50) + '...' });
+
+                            // Create and append the suggestion element
+                            const div = document.createElement('div');
+                            div.className = 'suggestion-item';
+                            div.dataset.index = data.index;
+                            div.onclick = (e) => {
+                                if (!e.target.classList.contains('action-btn')) {
+                                    selectSuggestion(data.index);
+                                }
+                            };
+
+                            const escapedText = data.text.replace(/`/g, '\\`').replace(/\$/g, '\\$');
+
+                            div.innerHTML = `
+                                <div class="suggestion-header">
+                                    <span class="suggestion-type">${data.label}</span>
+                                    <span style="font-size: 0.7rem; color: var(--text-muted);">${currentGenerationTime}</span>
+                                </div>
+                                <div class="suggestion-text">${data.text}</div>
+                                <div class="suggestion-actions">
+                                    <button class="action-btn send" onclick="sendMessage(\`${escapedText}\`)">Send</button>
+                                    <button class="action-btn edit" onclick="editMessage(\`${escapedText}\`)">Edit & Send</button>
+                                    <button class="action-btn vary" onclick="showVariationPanel(${data.index})">Variations</button>
+                                </div>
+                            `;
+                            listDiv.appendChild(div);
+                        } else if (data.type === 'done') {
+                            if (firstSuggestion) {
+                                listDiv.innerHTML = '<div style="color: var(--text-muted); padding: 12px;">No suggestions parsed. Try a different prompt.</div>';
+                            }
+                            // Update processing status to done
+                            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                            processingStatus.textContent = `Done in ${elapsed}s`;
+                            processingStatus.style.color = '#22c55e';
+                        }
+                    } catch (e) {
+                        console.error('Parse error:', e, line);
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        listDiv.innerHTML = `<div style="color: #ef4444; padding: 12px;">Error: ${err.message}</div>`;
+        const processingStatus = document.getElementById('processing-status');
+        processingStatus.textContent = 'Error';
+        processingStatus.style.color = '#ef4444';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Get Suggestions';
+    }
+}
+
+// Parse raw response to extract analysis and suggestions
+function parseRawResponse(rawText) {
+    const result = { analysis: '', suggestions: [] };
+
+    // Try to find JSON in the response
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.analysis) result.analysis = parsed.analysis;
+            if (parsed.suggestions) result.suggestions = parsed.suggestions;
+            return result;
+        } catch (e) {}
+    }
+
+    // Try to extract analysis section
+    const analysisMatch = rawText.match(/(?:analysis|context|understanding)[:\s]*([^\n]+(?:\n(?![A-Z\d]\.|\*|-|suggestion|option|reply)[^\n]+)*)/i);
+    if (analysisMatch) {
+        result.analysis = analysisMatch[1].trim();
+    }
+
+    // Try to extract numbered or bulleted suggestions
+    const suggestionPatterns = [
+        /(?:^|\n)\s*(\d+)[.):]\s*(.+?)(?=\n\s*\d+[.):]\s*|\n\n|$)/gs,
+        /(?:^|\n)\s*[-*•]\s*(.+?)(?=\n\s*[-*•]\s*|\n\n|$)/gs,
+        /(?:^|\n)\s*(?:short|medium|long|witty|playful|direct|option\s*\d*)[:\s]*["']?(.+?)["']?(?=\n|$)/gi
+    ];
+
+    for (const pattern of suggestionPatterns) {
+        const matches = [...rawText.matchAll(pattern)];
+        if (matches.length >= 2) {
+            result.suggestions = matches.map((m, i) => ({
+                type: `Option ${i + 1}`,
+                text: (m[2] || m[1]).trim().replace(/^["']|["']$/g, '')
+            }));
+            break;
+        }
+    }
+
+    // If no structured suggestions found, split by double newlines
+    if (result.suggestions.length === 0) {
+        const paragraphs = rawText.split(/\n\n+/).filter(p => p.trim().length > 20);
+        if (paragraphs.length > 1) {
+            result.suggestions = paragraphs.slice(0, 3).map((p, i) => ({
+                type: `Option ${i + 1}`,
+                text: p.trim()
+            }));
+        } else if (rawText.trim()) {
+            result.suggestions = [{ type: 'Response', text: rawText.trim() }];
+        }
+    }
+
+    return result;
+}
+
+// Generate suggestions
+async function generateSuggestions() {
+    const text = document.getElementById('suggest-input').value.trim();
+    if (!text) return alert('Please enter a message');
+
+    const promptId = document.getElementById('prompt-select').value;
+    const btn = document.getElementById('suggest-btn');
+    const resultDiv = document.getElementById('suggestion-result');
+
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    closeVariationPanel();
+
+    try {
+        const resp = await fetch('/api/ai/suggest', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text, prompt_id: parseInt(promptId)})
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+
+        // Show results
+        resultDiv.classList.add('visible');
+
+        let analysis = data.analysis || '';
+        let suggestions = data.suggestions || [];
+
+        // If we got a raw response, try to parse it
+        if (data.raw_response && (!suggestions || suggestions.length === 0)) {
+            const parsed = parseRawResponse(data.raw_response);
+            analysis = analysis || parsed.analysis;
+            suggestions = parsed.suggestions;
+        }
+
+        // Display analysis
+        if (analysis) {
+            document.getElementById('analysis-box').textContent = analysis;
+            document.getElementById('analysis-box').style.display = 'block';
+        } else {
+            document.getElementById('analysis-box').style.display = 'none';
+        }
+
+        // Store and display suggestions
+        currentSuggestions = suggestions;
+        displaySuggestions(suggestions);
+
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Get Suggestions';
+    }
+}
+
+function displaySuggestions(suggestions) {
+    const listDiv = document.getElementById('suggestion-list');
+    listDiv.innerHTML = '';
+
+    suggestions.forEach((s, idx) => {
+        const div = document.createElement('div');
+        div.className = 'suggestion-item';
+        div.dataset.index = idx;
+        div.onclick = (e) => {
+            if (!e.target.classList.contains('action-btn')) {
+                selectSuggestion(idx);
+            }
+        };
+
+        const escapedText = s.text.replace(/`/g, '\\`').replace(/\$/g, '\\$');
+
+        div.innerHTML = `
+            <div class="suggestion-header">
+                <span class="suggestion-type">${s.type || 'Suggestion'}</span>
+            </div>
+            <div class="suggestion-text">${s.text}</div>
+            <div class="suggestion-actions">
+                <button class="action-btn send" onclick="sendMessage(\`${escapedText}\`)">Send</button>
+                <button class="action-btn edit" onclick="editMessage(\`${escapedText}\`)">Edit & Send</button>
+                <button class="action-btn vary" onclick="showVariationPanel(${idx})">Variations</button>
+            </div>
+        `;
+        listDiv.appendChild(div);
+    });
+}
+
+function selectSuggestion(idx) {
+    document.querySelectorAll('.suggestion-item').forEach((el, i) => {
+        el.classList.toggle('selected', i === idx);
+    });
+    selectedSuggestionText = currentSuggestions[idx]?.text || '';
+}
+
+// Send message directly
+async function sendMessage(text) {
+    if (!confirm('Send this message?\n\n' + text)) return;
+
+    logHistory('send', { text: text.substring(0, 80) + '...' });
+
+    try {
+        const resp = await fetch('/api/send-message', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text})
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            logHistory('sent_success', { text: text.substring(0, 50) });
+            alert('Message queued for sending!');
+        } else {
+            logHistory('sent_failed', { error: data.error || 'Unknown' });
+            alert('Error: ' + (data.error || 'Failed to send'));
+        }
+    } catch (err) {
+        logHistory('sent_failed', { error: err.message });
+        alert('Error: ' + err.message);
+    }
+}
+
+// Edit modal functions
+function editMessage(text) {
+    logHistory('edit_opened', { original: text.substring(0, 50) + '...' });
+    document.getElementById('edit-text').value = text;
+    document.getElementById('edit-modal').classList.add('visible');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.remove('visible');
+}
+
+async function sendEditedMessage() {
+    const text = document.getElementById('edit-text').value.trim();
+    if (!text) return alert('Message cannot be empty');
+
+    closeEditModal();
+    await sendMessage(text);
+}
+
+// Variation panel functions
+function showVariationPanel(idx) {
+    console.log('showVariationPanel called with idx:', idx);
+    console.log('currentSuggestions:', currentSuggestions);
+    console.log('currentSuggestions[idx]:', currentSuggestions[idx]);
+
+    const suggestion = currentSuggestions[idx];
+    if (!suggestion) {
+        alert('No suggestion found at index ' + idx + '. currentSuggestions has ' + currentSuggestions.length + ' items.');
+        return;
+    }
+
+    logHistory('variation_started', { base: suggestion.text.substring(0, 50) + '...' });
+
+    selectedSuggestionText = suggestion.text;
+    document.getElementById('variation-base').textContent = suggestion.text;
+    document.getElementById('variation-context').value = '';
+    document.getElementById('variation-panel').classList.add('visible');
+
+    selectSuggestion(idx);
+}
+
+function closeVariationPanel() {
+    document.getElementById('variation-panel').classList.remove('visible');
+}
+
+async function generateVariations() {
+    const baseText = selectedSuggestionText;
+    const context = document.getElementById('variation-context').value.trim();
+
+    if (!baseText) return alert('No suggestion selected');
+
+    const btn = document.querySelector('.variation-actions .action-btn.send');
+    const listDiv = document.getElementById('suggestion-list');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    try {
+        const promptId = document.getElementById('prompt-select').value;
+        const numSuggestions = document.getElementById('num-suggestions').value;
+        const originalMessage = document.getElementById('suggest-input').value.trim();
+
+        const variationPrompt = `Original message to reply to: "${originalMessage}"
+
+Base reply to create variations of: "${baseText}"
+
+${context ? 'Additional direction: ' + context : ''}
+
+Create ${numSuggestions} variations of the base reply. Keep the core meaning but adjust tone/style as directed.`;
+
+        // Use streaming for variations too
+        const response = await fetch('/api/ai/suggest/stream', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                text: variationPrompt,
+                prompt_id: parseInt(promptId),
+                num_suggestions: parseInt(numSuggestions)
+            })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        const startIndex = currentSuggestions.length;
+
+        while (true) {
+            const {done, value} = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, {stream: true});
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+
+                        if (data.type === 'suggestion') {
+                            const newIndex = startIndex + data.index;
+                            currentSuggestions[newIndex] = {
+                                type: 'Var: ' + data.label,
+                                text: data.text
+                            };
+
+                            const div = document.createElement('div');
+                            div.className = 'suggestion-item';
+                            div.dataset.index = newIndex;
+                            div.onclick = (e) => {
+                                if (!e.target.classList.contains('action-btn')) {
+                                    selectSuggestion(newIndex);
+                                }
+                            };
+
+                            const escapedText = data.text.replace(/`/g, '\\`').replace(/\$/g, '\\$');
+                            const varTime = formatTime(new Date());
+
+                            div.innerHTML = `
+                                <div class="suggestion-header">
+                                    <span class="suggestion-type" style="color: #8b5cf6;">Var: ${data.label}</span>
+                                    <span style="font-size: 0.7rem; color: var(--text-muted);">${varTime}</span>
+                                </div>
+                                <div class="suggestion-text">${data.text}</div>
+                                <div class="suggestion-actions">
+                                    <button class="action-btn send" onclick="sendMessage(\`${escapedText}\`)">Send</button>
+                                    <button class="action-btn edit" onclick="editMessage(\`${escapedText}\`)">Edit & Send</button>
+                                    <button class="action-btn vary" onclick="showVariationPanel(${newIndex})">Variations</button>
+                                </div>
+                            `;
+                            listDiv.appendChild(div);
+                        }
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                    }
+                }
+            }
+        }
+
+        closeVariationPanel();
+
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Variations';
+    }
+}
+
+function generateForMessage(msgId, text) {
+    document.getElementById('suggest-input').value = text;
+    generateSuggestionsStream();
+}
+
+function loadHistoricSuggestion(text) {
+    if (text) {
+        document.getElementById('suggest-input').value = text;
+    }
+}
+
+function copyText(btn, text) {
+    navigator.clipboard.writeText(text);
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+}
+
+// Q&A
+async function askQuestion() {
+    const input = document.getElementById('qna-input');
+    const question = input.value.trim();
+    if (!question) return;
+
+    // Get context settings from dropdown
+    const contextSelect = document.getElementById('qna-context-select').value;
+    const [contextMode, contextValue] = contextSelect.split(':');
+
+    const messagesDiv = document.getElementById('qna-messages');
+
+    // Add user message
+    const userDiv = document.createElement('div');
+    userDiv.className = 'qna-message user';
+    userDiv.textContent = question;
+    messagesDiv.appendChild(userDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    input.value = '';
+    input.disabled = true;
+
+    try {
+        const resp = await fetch('/api/ai/ask', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                question,
+                context_mode: contextMode === 'days' ? 'days' : 'messages',
+                context_value: parseInt(contextValue)
+            })
+        });
+        const data = await resp.json();
+
+        const assistantDiv = document.createElement('div');
+        assistantDiv.className = 'qna-message assistant';
+        assistantDiv.textContent = data.answer || data.error || 'No response';
+        messagesDiv.appendChild(assistantDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        input.disabled = false;
+        input.focus();
+    }
+}
+
+document.getElementById('qna-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') askQuestion();
+});
+
+async function clearConversation() {
+    if (!confirm('Clear conversation history?')) return;
+    await fetch('/api/ai/conversation/clear', {method: 'POST'});
+    document.getElementById('qna-messages').innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;">Conversation cleared. Ask a new question!</div>';
+}
+
+// Prompts
+function showAddPromptModal() {
+    document.getElementById('modal-title').textContent = 'Add Prompt';
+    document.getElementById('prompt-id').value = '';
+    document.getElementById('prompt-name').value = '';
+    document.getElementById('prompt-desc').value = '';
+    document.getElementById('prompt-system').value = '';
+    document.getElementById('prompt-modal').classList.add('visible');
+}
+
+async function editPrompt(id) {
+    const resp = await fetch('/api/ai/prompts');
+    const prompts = await resp.json();
+    const prompt = prompts.find(p => p.id === id);
+    if (!prompt) return;
+
+    document.getElementById('modal-title').textContent = 'Edit Prompt';
+    document.getElementById('prompt-id').value = id;
+    document.getElementById('prompt-name').value = prompt.name;
+    document.getElementById('prompt-desc').value = prompt.description || '';
+    document.getElementById('prompt-system').value = prompt.system_prompt;
+    document.getElementById('prompt-modal').classList.add('visible');
+}
+
+function closeModal() {
+    document.getElementById('prompt-modal').classList.remove('visible');
+}
+
+document.getElementById('prompt-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById('prompt-id').value;
+    const data = {
+        name: document.getElementById('prompt-name').value,
+        description: document.getElementById('prompt-desc').value,
+        system_prompt: document.getElementById('prompt-system').value
+    };
+
+    if (id) {
+        await fetch(`/api/ai/prompts/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+    } else {
+        await fetch('/api/ai/prompts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+    }
+
+    closeModal();
+    location.reload();
+});
+
+async function setDefaultPrompt(id) {
+    await fetch(`/api/ai/prompts/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({is_default: true})
+    });
+    location.reload();
+}
+
+async function deletePrompt(id) {
+    if (!confirm('Delete this prompt?')) return;
+    await fetch(`/api/ai/prompts/${id}`, {method: 'DELETE'});
+    location.reload();
+}
+
+async function generateSummary() {
+    if (!confirm('Generate a new summary? This uses AI tokens.')) return;
+
+    try {
+        const resp = await fetch('/api/ai/summarize', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({days: 7})
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(`Summary generated! Covered ${data.messages_covered} messages.`);
+            location.reload();
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}System Log Viewer{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fafafa;
+            --bg-alt: #f0f0f0;
+            --text: #333;
+            --text-muted: #888;
+            --border: #e0e0e0;
+            /* Blue tones for "me" */
+            --me-new: #1e40af;
+            --me-mid: #3b82f6;
+            --me-old: #93c5fd;
+            --me-vold: #bfdbfe;
+            /* Red tones for target */
+            --them-new: #991b1b;
+            --them-mid: #dc2626;
+            --them-old: #f87171;
+            --them-vold: #fecaca;
+            /* Status */
+            --online: #166534;
+            --offline: #6b7280;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .top-bar {
+            background: var(--bg-alt);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-bar-title {
+            font-weight: 500;
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ha-logo {
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+        }
+
+        .top-bar-nav {
+            display: flex;
+            gap: 4px;
+        }
+
+        .top-bar-nav a {
+            padding: 4px 10px;
+            font-size: 11px;
+            text-decoration: none;
+            color: var(--text-muted);
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .top-bar-nav a:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .top-bar-nav a.active {
+            background: var(--text);
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .log-header {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 12px;
+        }
+
+        .content-area {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 16px;
+        }
+
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    {% if session.logged_in %}
+    <div class="top-bar">
+        <span class="top-bar-title">
+            <svg class="ha-logo" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#18BCF2" d="M240 224.762c0 8.416-6.822 15.238-15.238 15.238H15.238C6.822 240 0 233.178 0 224.762V15.238C0 6.822 6.822 0 15.238 0h209.524C233.178 0 240 6.822 240 15.238v209.524z"/>
+                <path fill="#FFF" d="M120 40c-44.183 0-80 35.817-80 80s35.817 80 80 80 80-35.817 80-80-35.817-80-80-80zm0 140c-33.137 0-60-26.863-60-60s26.863-60 60-60 60 26.863 60 60-26.863 60-60 60z"/>
+                <circle fill="#FFF" cx="120" cy="120" r="20"/>
+            </svg>
+            Home Assistant
+        </span>
+        <div class="top-bar-nav">
+            <a href="{{ url_for('messages') }}" class="{% if request.endpoint == 'messages' %}active{% endif %}">Records</a>
+            <a href="{{ url_for('status') }}" class="{% if request.endpoint == 'status' %}active{% endif %}">Activity</a>
+            <a href="{{ url_for('media_gallery') }}" class="{% if request.endpoint == 'media_gallery' %}active{% endif %}">Files</a>
+            <a href="{{ url_for('logout') }}">Exit</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,88 @@
+{% extends "base_v3.html" %}
+
+{% block title %}System Access{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-box">
+        <div class="login-title">System Access Required</div>
+        {% if error %}
+        <div class="login-error">Access denied. Invalid credentials.</div>
+        {% endif %}
+        <form method="POST">
+            <input type="password" name="password" placeholder="Enter access key" autofocus required>
+            <button type="submit">Authenticate</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .login-wrapper {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .login-box {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 32px;
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .login-title {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .login-error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 8px 12px;
+        font-size: 11px;
+        border-radius: 4px;
+        margin-bottom: 16px;
+    }
+
+    .login-box input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    .login-box input:focus {
+        outline: none;
+        border-color: #999;
+    }
+
+    .login-box button {
+        width: 100%;
+        padding: 10px;
+        background: var(--text);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+    }
+
+    .login-box button:hover {
+        background: #555;
+    }
+</style>
+{% endblock %}

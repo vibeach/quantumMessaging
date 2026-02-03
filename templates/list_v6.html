@@ -1,0 +1,1365 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Message List{% endblock %}
+
+{% block content %}
+<!-- Smart Home Widget (decoy) - click lightbulb or button to toggle modes -->
+<div class="smart-widget card" id="mode-toggle">
+    <div class="widget-header">
+        <span class="widget-icon" onclick="toggleMode()" style="cursor:pointer">💡</span>
+        <span class="widget-title">Automation Commands</span>
+        <button class="widget-toggle on" id="mode-btn" onclick="toggleMode()">ON</button>
+    </div>
+</div>
+
+<!-- Real content (hidden when mode is OFF) -->
+<div id="real-content">
+<div class="page-header">
+    <span class="page-title">Automation Commands</span>
+    <span class="page-meta">{{ stats.total }} total</span>
+    <span class="refresh-time">{{ last_refresh }}</span>
+    <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+</div>
+
+<!-- Scheduled messages -->
+{% if scheduled %}
+<div class="scheduled-section card">
+    <h3>📅 Scheduled ({{ scheduled|length }})</h3>
+    <div class="scheduled-list">
+        {% for s in scheduled %}
+        <div class="scheduled-row">
+            <span class="scheduled-time" data-scheduled="{{ s.scheduled_at }}">{{ s.scheduled_at[11:16] if s.scheduled_at else '' }}</span>
+            <span class="scheduled-countdown" data-scheduled="{{ s.scheduled_at }}"></span>
+            {% if 'MEDIA:circle:' in s.text %}
+            <span class="scheduled-type circle">🔵 Circle</span>
+            {% elif 'MEDIA:video:' in s.text %}
+            <span class="scheduled-type video">🎬 Video</span>
+            {% elif 'MEDIA:photo:' in s.text %}
+            <span class="scheduled-type photo">📷 Photo</span>
+            {% else %}
+            <span class="scheduled-type text">💬 Text</span>
+            {% endif %}
+            <span class="scheduled-text">
+                {% if 'MEDIA:' in s.text %}
+                {{ s.text.split(':')[-1].split('/')[-1][:30] }}
+                {% else %}
+                {{ s.text[:50] }}{% if s.text|length > 50 %}...{% endif %}
+                {% endif %}
+            </span>
+            <button class="cancel-scheduled-btn" onclick="cancelScheduled({{ s.id }})" title="Cancel">✕</button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Pending outgoing messages -->
+{% if pending %}
+<div class="pending-section card">
+    <h3>📤 Sending ({{ pending|length }})</h3>
+    <div class="pending-list">
+        {% for p in pending %}
+        <div class="pending-row">
+            <span class="pending-status {{ p.status }}">{{ p.status }}</span>
+            {% if 'MEDIA:circle:' in p.text %}
+            <span class="pending-type circle">🔵 Circle</span>
+            {% elif 'MEDIA:video:' in p.text %}
+            <span class="pending-type video">🎬 Video</span>
+            {% elif 'MEDIA:photo:' in p.text %}
+            <span class="pending-type photo">📷 Photo</span>
+            {% else %}
+            <span class="pending-type text">💬 Text</span>
+            {% endif %}
+            <span class="pending-text">
+                {% if 'MEDIA:' in p.text %}
+                {{ p.text.split(':')[-1].split('/')[-1][:30] }}
+                {% else %}
+                {{ p.text[:40] }}{% if p.text|length > 40 %}...{% endif %}
+                {% endif %}
+            </span>
+            <span class="pending-time" data-created="{{ p.created_at }}">{{ p.created_at[11:19] if p.created_at else '' }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Messages table -->
+<div class="list-container card">
+    <table class="msg-table">
+        <thead>
+            <tr>
+                <th class="col-time">Sent</th>
+                <th class="col-author">From</th>
+                <th class="col-text">Message</th>
+                <th class="col-viewtime">Viewed</th>
+                <th class="col-delta">Delta</th>
+                <th class="col-reacted">Reacted</th>
+                <th class="col-actions">Actions</th>
+                <th class="col-react">React</th>
+                <th class="col-reply">Reply</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for msg in messages %}
+            {% set is_from_me = (msg.sender_name == my_name) %}
+            {% set is_viewed = (msg.seen_by_target == 1) if is_from_me else (msg.marked_read == 1) %}
+            <tr class="msg-row {% if msg.deleted %}deleted{% endif %} {% if is_from_me %}from-me{% else %}from-them{% endif %}"
+                data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}">
+                <td class="col-time">
+                    <span class="time-full">{{ msg.timestamp[11:16] if msg.timestamp else '' }}</span>
+                    <span class="time-date">{{ msg.timestamp[:10] if msg.timestamp else '' }}</span>
+                </td>
+                <td class="col-author">
+                    <span class="author-indicator {{ 'me' if is_from_me else 'them' }}">&nbsp;</span>
+                </td>
+                <td class="col-text">
+                    {% if msg.media_type and msg.media_path %}
+                    <a href="{{ url_for('serve_media', filename=msg.media_path) }}" target="_blank" class="media-link">
+                        <span class="media-badge clickable">{{ msg.media_type }}</span>
+                    </a>
+                    {% elif msg.media_type %}
+                    <span class="media-badge">{{ msg.media_type }}</span>
+                    {% endif %}
+                    {% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript[:40] }}{% if msg.transcript|length > 40 %}...{% endif %}</span>{% endif %}
+                    {{ msg.text[:60] }}{% if msg.text|length > 60 %}...{% endif %}
+                    {% if msg.deleted %}<span class="deleted-badge">DEL</span>{% if msg.deleted_at %}<span class="deleted-time-display" data-deleted-at="{{ msg.deleted_at }}">[{{ msg.deleted_at[11:16] }}]</span><span class="deleted-ago"></span>{% endif %}{% endif %}
+                </td>
+                <td class="col-viewtime">
+                    {% if is_from_me and msg.seen_by_target_at %}
+                    <span class="view-time" data-ts="{{ msg.seen_by_target_at }}">{{ msg.seen_by_target_at[11:16] }}</span>
+                    {% elif not is_from_me and msg.marked_read_at %}
+                    <span class="view-time" data-ts="{{ msg.marked_read_at }}">{{ msg.marked_read_at[11:16] }}</span>
+                    {% else %}
+                    <span class="no-data">-</span>
+                    {% endif %}
+                </td>
+                <td class="col-delta">
+                    <span class="delta" data-sent="{{ msg.timestamp }}"
+                          data-viewed="{{ msg.seen_by_target_at if is_from_me else msg.marked_read_at }}">-</span>
+                </td>
+                <td class="col-reacted">
+                    {% if msg.reactions %}
+                    <span class="reactions-display" data-reactions="{{ msg.reactions }}"></span>
+                    {% else %}
+                    <span class="no-data">-</span>
+                    {% endif %}
+                </td>
+                <td class="col-actions">
+                    {% if is_from_me and not msg.deleted %}
+                    <button class="delete-btn" onclick="deleteMsg({{ msg.message_id }}, {{ msg.chat_id }}, this)" title="Delete">🗑</button>
+                    {% else %}
+                    <span class="no-data">-</span>
+                    {% endif %}
+                </td>
+                <td class="col-react">
+                    {% if not is_from_me %}
+                    <div class="react-btns">
+                        <button class="react-btn" onclick="react({{ msg.message_id }}, {{ msg.chat_id }}, 'heart')" title="Heart">❤️</button>
+                        <button class="react-btn" onclick="react({{ msg.message_id }}, {{ msg.chat_id }}, 'thumbsup')" title="Thumbs up">👍</button>
+                        <button class="react-btn" onclick="react({{ msg.message_id }}, {{ msg.chat_id }}, 'fire')" title="Fire">🔥</button>
+                        <button class="react-btn" onclick="react({{ msg.message_id }}, {{ msg.chat_id }}, 'unicorn')" title="Unicorn">🦄</button>
+                    </div>
+                    {% else %}
+                    <span class="no-data">-</span>
+                    {% endif %}
+                </td>
+                <td class="col-reply">
+                    <button class="reply-btn" onclick="replyTo({{ msg.message_id }}, '{{ msg.text[:30] | e | replace("'", "\\'") | replace("\n", " ") }}{% if msg.text|length > 30 %}...{% endif %}')" title="Reply">↩</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="empty">No messages</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}">&larr; Newer</a>{% endif %}
+    <span>Page {{ page }}</span>
+    {% if has_more %}<a href="?page={{ page + 1 }}">Older &rarr;</a>{% endif %}
+</div>
+
+<!-- History Unlock Button -->
+{% if not history_unlocked %}
+<div class="history-unlock-container">
+    <button class="history-unlock-btn" onclick="unlockHistory()" title="Unlock full history">⏱️</button>
+</div>
+{% else %}
+<div class="history-unlock-container">
+    <div class="history-unlocked-badge">✓ Full history unlocked</div>
+</div>
+{% endif %}
+</div>
+
+<!-- Fake content (shown when mode is OFF) - Smart Home Automation -->
+<div id="fake-content" style="display:none">
+<div class="page-header">
+    <span class="page-title">Automation Commands</span>
+    <span class="page-meta">12 total</span>
+    <span class="refresh-time">Just now</span>
+    <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+</div>
+
+<div class="list-container card">
+    <table class="msg-table">
+        <thead>
+            <tr>
+                <th class="col-time">Time</th>
+                <th class="col-author">Type</th>
+                <th class="col-text">Command</th>
+                <th class="col-viewtime">Status</th>
+                <th class="col-delta">Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="msg-row">
+                <td class="col-time"><span class="time-full">08:30</span><span class="time-date">2024-01-15</span></td>
+                <td class="col-author"><span class="author-indicator me">&nbsp;</span></td>
+                <td class="col-text">Turn on living room lights</td>
+                <td class="col-viewtime"><span class="view-time">08:30</span></td>
+                <td class="col-delta"><span class="delta fast">&lt;1m</span></td>
+            </tr>
+            <tr class="msg-row">
+                <td class="col-time"><span class="time-full">07:00</span><span class="time-date">2024-01-15</span></td>
+                <td class="col-author"><span class="author-indicator them">&nbsp;</span></td>
+                <td class="col-text">Morning routine started</td>
+                <td class="col-viewtime"><span class="view-time">07:00</span></td>
+                <td class="col-delta"><span class="delta fast">&lt;1m</span></td>
+            </tr>
+            <tr class="msg-row">
+                <td class="col-time"><span class="time-full">22:00</span><span class="time-date">2024-01-14</span></td>
+                <td class="col-author"><span class="author-indicator me">&nbsp;</span></td>
+                <td class="col-text">Set thermostat to 68F</td>
+                <td class="col-viewtime"><span class="view-time">22:00</span></td>
+                <td class="col-delta"><span class="delta fast">1m</span></td>
+            </tr>
+            <tr class="msg-row">
+                <td class="col-time"><span class="time-full">18:30</span><span class="time-date">2024-01-14</span></td>
+                <td class="col-author"><span class="author-indicator them">&nbsp;</span></td>
+                <td class="col-text">Motion detected: Front door</td>
+                <td class="col-viewtime"><span class="view-time">18:30</span></td>
+                <td class="col-delta"><span class="delta fast">&lt;1m</span></td>
+            </tr>
+            <tr class="msg-row">
+                <td class="col-time"><span class="time-full">17:45</span><span class="time-date">2024-01-14</span></td>
+                <td class="col-author"><span class="author-indicator me">&nbsp;</span></td>
+                <td class="col-text">Unlock front door</td>
+                <td class="col-viewtime"><span class="view-time">17:45</span></td>
+                <td class="col-delta"><span class="delta fast">2m</span></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination">
+    <span>Page 1</span>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Smart Widget Toggle */
+    .smart-widget {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+    }
+
+    .widget-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .widget-icon {
+        font-size: 1.5rem;
+    }
+
+    .widget-title {
+        flex: 1;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .widget-toggle {
+        padding: 6px 16px;
+        border-radius: 20px;
+        border: none;
+        font-weight: 600;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .widget-toggle.on {
+        background: #10b981;
+        color: white;
+    }
+
+    .widget-toggle.off {
+        background: #6b7280;
+        color: white;
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .page-title {
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .page-meta {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+
+    .refresh-time {
+        margin-left: auto;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+    }
+
+    .refresh-btn {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        cursor: pointer;
+    }
+
+    .refresh-btn:hover {
+        opacity: 0.9;
+    }
+
+    /* Scheduled section */
+    .scheduled-section {
+        padding: 12px;
+        margin-bottom: 12px;
+        background: #dbeafe;
+        border-color: #3b82f6;
+    }
+
+    [data-theme="dark"] .scheduled-section {
+        background: #1e3a5f;
+        border-color: #3b82f6;
+    }
+
+    .scheduled-section h3 {
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+        color: #1e40af;
+    }
+
+    [data-theme="dark"] .scheduled-section h3 {
+        color: #93c5fd;
+    }
+
+    .scheduled-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 0.8rem;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .scheduled-row:last-child {
+        border-bottom: none;
+    }
+
+    .scheduled-time {
+        background: #3b82f6;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        font-family: 'JetBrains Mono', monospace;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .scheduled-countdown {
+        background: #1d4ed8;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        font-family: 'JetBrains Mono', monospace;
+        min-width: 60px;
+        text-align: center;
+    }
+
+    .scheduled-type {
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+
+    .scheduled-type.circle {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .scheduled-type.video {
+        background: #fce7f3;
+        color: #9d174d;
+    }
+
+    .scheduled-type.photo {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .scheduled-type.text {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    [data-theme="dark"] .scheduled-type.circle {
+        background: #1e3a8a;
+        color: #93c5fd;
+    }
+
+    [data-theme="dark"] .scheduled-type.video {
+        background: #831843;
+        color: #fbcfe8;
+    }
+
+    [data-theme="dark"] .scheduled-type.photo {
+        background: #064e3b;
+        color: #6ee7b7;
+    }
+
+    [data-theme="dark"] .scheduled-type.text {
+        background: #374151;
+        color: #d1d5db;
+    }
+
+    .scheduled-text {
+        flex: 1;
+        color: var(--text);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.75rem;
+    }
+
+    .cancel-scheduled-btn {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        color: #b91c1c;
+    }
+
+    .cancel-scheduled-btn:hover {
+        background: #fca5a5;
+    }
+
+    [data-theme="dark"] .cancel-scheduled-btn {
+        background: #450a0a;
+        border-color: #991b1b;
+        color: #fca5a5;
+    }
+
+    /* Pending section */
+    .pending-section {
+        padding: 12px;
+        margin-bottom: 12px;
+        background: #fef3c7;
+        border-color: #f59e0b;
+    }
+
+    [data-theme="dark"] .pending-section {
+        background: #78350f;
+        border-color: #f59e0b;
+    }
+
+    .pending-section h3 {
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+        color: #92400e;
+    }
+
+    [data-theme="dark"] .pending-section h3 {
+        color: #fef3c7;
+    }
+
+    .pending-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 0.8rem;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .pending-row:last-child {
+        border-bottom: none;
+    }
+
+    .pending-status {
+        background: #f59e0b;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        min-width: 50px;
+        text-align: center;
+    }
+
+    .pending-status.pending {
+        background: #f59e0b;
+        animation: pulse 1.5s infinite;
+    }
+
+    .pending-status.sent {
+        background: #10b981;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+
+    .pending-type {
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+
+    .pending-type.circle {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .pending-type.video {
+        background: #fce7f3;
+        color: #9d174d;
+    }
+
+    .pending-type.photo {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .pending-type.text {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    [data-theme="dark"] .pending-type.circle {
+        background: #1e3a8a;
+        color: #93c5fd;
+    }
+
+    [data-theme="dark"] .pending-type.video {
+        background: #831843;
+        color: #fbcfe8;
+    }
+
+    [data-theme="dark"] .pending-type.photo {
+        background: #064e3b;
+        color: #6ee7b7;
+    }
+
+    [data-theme="dark"] .pending-type.text {
+        background: #374151;
+        color: #d1d5db;
+    }
+
+    .pending-text {
+        flex: 1;
+        color: var(--text);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.75rem;
+    }
+
+    .pending-time {
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Table */
+    .list-container {
+        overflow-x: auto;
+    }
+
+    .msg-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+    }
+
+    .msg-table th {
+        background: var(--bg);
+        padding: 10px 8px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        border-bottom: 2px solid var(--border);
+        white-space: nowrap;
+    }
+
+    .msg-table td {
+        padding: 8px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+    }
+
+    .msg-row:hover {
+        background: var(--bg);
+    }
+
+    .msg-row.deleted {
+        opacity: 0.5;
+        background: #fef2f2;
+    }
+
+    [data-theme="dark"] .msg-row.deleted {
+        background: #450a0a;
+    }
+
+    .msg-row.from-me .col-author .author {
+        color: var(--accent);
+    }
+
+    .msg-row.from-them .col-author .author {
+        color: var(--text);
+    }
+
+    .col-time {
+        width: 70px;
+    }
+
+    .time-full {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 500;
+    }
+
+    .time-date {
+        display: block;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+    }
+
+    .col-author {
+        width: 50px;
+    }
+
+    .author-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid;
+    }
+
+    .author-indicator.me {
+        background-color: #2563eb;
+        border-color: #2563eb;
+    }
+
+    .author-indicator.them {
+        background-color: #1f1f1f;
+        border-color: #1f1f1f;
+    }
+
+    [data-theme="dark"] .author-indicator.them {
+        background-color: #f5f5f5;
+        border-color: #f5f5f5;
+    }
+
+    .col-text {
+        min-width: 200px;
+        max-width: 300px;
+    }
+
+    .media-badge {
+        background: #e0e7ff;
+        color: #3730a3;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        margin-right: 4px;
+    }
+
+    .media-badge.clickable {
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    .media-badge.clickable:hover {
+        background: #c7d2fe;
+    }
+
+    .media-link {
+        text-decoration: none;
+    }
+
+    [data-theme="dark"] .media-badge {
+        background: #312e81;
+        color: #c7d2fe;
+    }
+
+    [data-theme="dark"] .media-badge.clickable:hover {
+        background: #4338ca;
+    }
+
+    .transcript {
+        font-style: italic;
+        font-size: 0.75rem;
+        margin-right: 4px;
+        text-decoration: underline;
+        text-decoration-color: #ec4899;
+        text-underline-offset: 2px;
+    }
+
+    [data-theme="dark"] .transcript {
+        text-decoration-color: #f472b6;
+    }
+
+    .transcript-status {
+        font-size: 0.85rem;
+        margin-right: 4px;
+    }
+    .transcript-status.pending {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    .transcript-status.failed {
+        opacity: 0.7;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+
+    .deleted-badge {
+        background: #fecaca;
+        color: #991b1b;
+        padding: 2px 4px;
+        border-radius: 2px;
+        font-size: 0.65rem;
+        margin-left: 4px;
+    }
+
+    .deleted-time-display {
+        color: #ef4444;
+        font-size: 0.7rem;
+        margin-left: 4px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .deleted-ago {
+        color: #f87171;
+        font-size: 0.7rem;
+        margin-left: 2px;
+    }
+
+    .col-viewtime {
+        width: 70px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .view-time {
+        color: #10b981;
+    }
+
+    .no-data {
+        color: var(--text-muted);
+    }
+
+    .col-delta {
+        width: 60px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .delta {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+    }
+
+    .delta.fast {
+        color: #10b981;
+    }
+
+    .delta.slow {
+        color: #f59e0b;
+    }
+
+    .delta.very-slow {
+        color: #ef4444;
+    }
+
+    .col-reacted {
+        width: 70px;
+        text-align: center;
+    }
+
+    .reactions-display {
+        font-size: 0.9rem;
+    }
+
+    .col-actions {
+        width: 50px;
+        text-align: center;
+    }
+
+    .col-react {
+        width: 120px;
+        text-align: center;
+    }
+
+    .col-reply {
+        width: 50px;
+        text-align: center;
+    }
+
+    .react-btns {
+        display: flex;
+        gap: 2px;
+        justify-content: center;
+    }
+
+    .react-btn {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 4px 6px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .react-btn:hover {
+        background: var(--border);
+        transform: scale(1.1);
+    }
+
+    .reply-btn {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        color: var(--text);
+        transition: all 0.2s;
+    }
+
+    .reply-btn:hover {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+    }
+
+    .delete-btn {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        color: #991b1b;
+    }
+
+    .delete-btn:hover {
+        background: #fecaca;
+    }
+
+    [data-theme="dark"] .delete-btn {
+        background: #450a0a;
+        border-color: #991b1b;
+        color: #fecaca;
+    }
+
+    .empty {
+        text-align: center;
+        padding: 30px;
+        color: var(--text-muted);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin: 16px 0;
+        font-size: 0.85rem;
+    }
+
+    .pagination a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .pagination span {
+        color: var(--text-muted);
+    }
+
+    /* History Unlock */
+    .history-unlock-container { display: flex; justify-content: center; padding: 12px; margin-bottom: 8px; }
+    .history-unlock-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .history-unlock-btn:hover { background: var(--border); transform: scale(1.1); }
+    [data-theme="dark"] .history-unlock-btn { background: #374151; border-color: #4b5563; }
+    .history-unlocked-badge { background: #d1fae5; color: #047857; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    [data-theme="dark"] .history-unlocked-badge { background: #065f46; color: #d1fae5; }
+
+    @media (max-width: 768px) {
+        .msg-table {
+            font-size: 0.75rem;
+        }
+
+        .col-text {
+            min-width: 120px;
+            max-width: 150px;
+        }
+
+        .time-date {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Mode toggle functionality (same as medi page)
+    const MODE_KEY = 'list_real_mode';
+    const MODE_TIME_KEY = 'list_mode_timestamp';
+    const MODE_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+    // Check if mode should be reset due to timeout
+    function checkModeTimeout() {
+        const lastModeTime = localStorage.getItem(MODE_TIME_KEY);
+        if (lastModeTime) {
+            const elapsed = Date.now() - parseInt(lastModeTime, 10);
+            if (elapsed > MODE_TIMEOUT) {
+                localStorage.setItem(MODE_KEY, 'false');
+                return false;
+            }
+        }
+        return localStorage.getItem(MODE_KEY) === 'true';
+    }
+
+    let realMode = checkModeTimeout();
+
+    function toggleMode() {
+        realMode = !realMode;
+        localStorage.setItem(MODE_KEY, realMode ? 'true' : 'false');
+        if (realMode) {
+            localStorage.setItem(MODE_TIME_KEY, Date.now().toString());
+        }
+        updateModeUI();
+    }
+
+    function updateModeUI() {
+        const btn = document.getElementById('mode-btn');
+        const realContent = document.getElementById('real-content');
+        const fakeContent = document.getElementById('fake-content');
+
+        if (realMode) {
+            btn.textContent = 'ON';
+            btn.className = 'widget-toggle on';
+            realContent.style.display = 'block';
+            fakeContent.style.display = 'none';
+        } else {
+            btn.textContent = 'OFF';
+            btn.className = 'widget-toggle off';
+            realContent.style.display = 'none';
+            fakeContent.style.display = 'block';
+        }
+    }
+
+    // Initialize mode UI on page load
+    document.addEventListener('DOMContentLoaded', updateModeUI);
+
+    // Calculate and update scheduled message countdowns
+    function updateScheduledCountdowns() {
+        document.querySelectorAll('.scheduled-countdown').forEach(el => {
+            const scheduledAt = el.dataset.scheduled;
+            if (!scheduledAt) return;
+
+            const scheduledDate = new Date(scheduledAt.replace(' ', 'T') + 'Z');
+            const now = new Date();
+            const diffMs = scheduledDate - now;
+
+            if (diffMs <= 0) {
+                el.textContent = 'now';
+                el.style.background = '#10b981';
+                return;
+            }
+
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            let text;
+            if (diffMins < 1) {
+                text = '<1m left';
+            } else if (diffMins < 60) {
+                text = diffMins + 'm left';
+            } else if (diffHours < 24) {
+                const mins = Math.floor((diffMs % 3600000) / 60000);
+                text = diffHours + 'h ' + mins + 'm';
+            } else {
+                text = diffDays + 'd ' + (diffHours % 24) + 'h';
+            }
+            el.textContent = text;
+        });
+    }
+
+    // Initial countdown update
+    updateScheduledCountdowns();
+    // Update every 30 seconds
+    setInterval(updateScheduledCountdowns, 30000);
+
+    // Cancel scheduled message
+    function cancelScheduled(msgId) {
+        if (!confirm('Cancel this scheduled message?')) return;
+
+        fetch('/api/cancel-scheduled', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: msgId})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to cancel: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(e => alert('Error: ' + e));
+    }
+
+    // Calculate and display deleted time ago
+    document.querySelectorAll('.deleted-ago').forEach(el => {
+        const timeDisplay = el.previousElementSibling;
+        if (!timeDisplay || !timeDisplay.dataset.deletedAt) return;
+
+        const deletedAt = timeDisplay.dataset.deletedAt;
+        const deletedDate = new Date(deletedAt.replace(' ', 'T'));
+        const now = new Date();
+        const diffMs = now - deletedDate;
+
+        if (isNaN(diffMs) || diffMs < 0) return;
+
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        let text;
+        if (diffMins < 1) {
+            text = '(now)';
+        } else if (diffMins < 60) {
+            text = '(' + diffMins + 'm)';
+        } else if (diffHours < 24) {
+            text = '(' + diffHours + 'h)';
+        } else {
+            text = '(' + diffDays + 'd)';
+        }
+        el.textContent = text;
+    });
+
+    // Calculate and display delta times
+    document.querySelectorAll('.delta').forEach(el => {
+        const sent = el.dataset.sent;
+        const viewed = el.dataset.viewed;
+
+        // Leave empty if no data
+        if (!sent || !viewed) {
+            el.textContent = '';
+            return;
+        }
+
+        const sentDate = new Date(sent.replace(' ', 'T'));
+        const viewedDate = new Date(viewed.replace(' ', 'T'));
+        const diffMs = viewedDate - sentDate;
+
+        // Leave empty if invalid
+        if (isNaN(diffMs) || diffMs < 0) {
+            el.textContent = '';
+            return;
+        }
+
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        let text;
+        if (diffMins < 1) {
+            text = '<1m';
+            el.classList.add('fast');
+        } else if (diffMins < 60) {
+            text = diffMins + 'm';
+            if (diffMins < 5) el.classList.add('fast');
+            else if (diffMins > 30) el.classList.add('slow');
+        } else if (diffHours < 24) {
+            text = diffHours + 'h';
+            el.classList.add('slow');
+        } else {
+            text = diffDays + 'd';
+            el.classList.add('very-slow');
+        }
+        el.textContent = text;
+    });
+
+    // Parse reactions
+    document.querySelectorAll('.reactions-display').forEach(el => {
+        try {
+            const reactions = JSON.parse(el.dataset.reactions);
+            if (reactions && reactions.length > 0) {
+                el.textContent = reactions.map(r => {
+                    if (r.emoji.startsWith('custom:')) return '...';
+                    return r.count > 1 ? `${r.emoji}${r.count}` : r.emoji;
+                }).join(' ');
+            }
+        } catch (e) {
+            el.remove();
+        }
+    });
+
+    // Send reaction
+    function react(msgId, chatId, emoji) {
+        const row = document.querySelector(`tr[data-msgid="${msgId}"]`);
+        const reactedCol = row ? row.querySelector('.col-reacted') : null;
+        const emojiMap = {fire: '🔥', heart: '❤️', unicorn: '🦄', thumbsup: '👍'};
+        const displayEmoji = emojiMap[emoji] || emoji;
+
+        fetch('/api/react', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message_id: msgId, chat_id: chatId, emoji: emoji})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Show pending status
+                if (reactedCol) {
+                    reactedCol.innerHTML = '<span class="reactions-display">' + displayEmoji + ' ⏳</span>';
+                }
+                // Poll for completion
+                pollReactionStatus(data.id, msgId, displayEmoji);
+            } else {
+                alert('Failed to queue reaction: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(e => alert('Error: ' + e));
+    }
+
+    // Poll reaction status until completed or failed
+    function pollReactionStatus(reactId, msgId, displayEmoji) {
+        let attempts = 0;
+        const maxAttempts = 30; // 30 seconds max
+
+        const poll = () => {
+            if (attempts >= maxAttempts) {
+                updateReactionUI(msgId, displayEmoji, 'timeout');
+                return;
+            }
+            attempts++;
+
+            fetch(`/api/react/${reactId}/status`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'completed') {
+                        updateReactionUI(msgId, displayEmoji, 'completed');
+                    } else if (data.status === 'failed') {
+                        updateReactionUI(msgId, displayEmoji, 'failed', data.last_error);
+                    } else {
+                        // Still pending, poll again
+                        setTimeout(poll, 1000);
+                    }
+                })
+                .catch(() => {
+                    setTimeout(poll, 1000);
+                });
+        };
+
+        setTimeout(poll, 1000);
+    }
+
+    // Update reaction UI based on status
+    function updateReactionUI(msgId, emoji, status, error) {
+        const row = document.querySelector(`tr[data-msgid="${msgId}"]`);
+        if (!row) return;
+        const reactedCol = row.querySelector('.col-reacted');
+        if (!reactedCol) return;
+
+        if (status === 'completed') {
+            reactedCol.innerHTML = '<span class="reactions-display" style="color: #10b981;">' + emoji + ' ✓</span>';
+        } else if (status === 'failed') {
+            reactedCol.innerHTML = '<span class="reactions-display" style="color: #ef4444;" title="' + (error || 'Failed') + '">' + emoji + ' ✗</span>';
+        } else if (status === 'timeout') {
+            reactedCol.innerHTML = '<span class="reactions-display" style="color: #f59e0b;" title="Check monitor is running">' + emoji + ' ?</span>';
+        }
+    }
+
+    // Delete message
+    function deleteMsg(msgId, chatId, btn) {
+        if (!confirm('Delete this message?')) return;
+
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        fetch('/api/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message_id: msgId, chat_id: chatId})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const row = btn.closest('tr');
+                row.classList.add('deleted');
+                btn.textContent = 'DEL';
+            } else {
+                alert('Failed to delete');
+                btn.disabled = false;
+                btn.textContent = '🗑';
+            }
+        })
+        .catch(e => {
+            alert('Error: ' + e);
+            btn.disabled = false;
+            btn.textContent = '🗑';
+        });
+    }
+
+    // Auto-refresh every 60s
+    setTimeout(() => location.reload(), 60000);
+
+    // Reply function - redirects to messages page with reply context
+    function replyTo(msgId, msgPreview) {
+        // Store reply context in localStorage so messages page can pick it up
+        localStorage.setItem('pendingReply', JSON.stringify({
+            messageId: msgId,
+            preview: msgPreview,
+            timestamp: Date.now()
+        }));
+        // Navigate to messages page
+        window.location.href = '/messages';
+    }
+
+    function unlockHistory() {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: var(--bg);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+        `;
+
+        modalContent.innerHTML = `
+            <h3 style="margin: 0 0 16px 0; color: var(--text);">What time is it?</h3>
+            <input type="text" id="history-password" placeholder="Enter time"
+                style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px;
+                       background: var(--bg); color: var(--text); font-size: 1rem; margin-bottom: 16px; box-sizing: border-box;">
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button id="unlock-cancel" style="padding: 10px 20px; border: 1px solid var(--border);
+                        border-radius: 6px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.9rem;">
+                    Cancel
+                </button>
+                <button id="unlock-submit" style="padding: 10px 20px; border: none; border-radius: 6px;
+                        background: var(--accent); color: white; cursor: pointer; font-weight: 500; font-size: 0.9rem;">
+                    Unlock
+                </button>
+            </div>
+            <div id="unlock-error" style="margin-top: 12px; color: #e74c3c; font-size: 0.85rem; display: none;"></div>
+        `;
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        const passwordInput = document.getElementById('history-password');
+        const submitBtn = document.getElementById('unlock-submit');
+        const cancelBtn = document.getElementById('unlock-cancel');
+        const errorDiv = document.getElementById('unlock-error');
+
+        // Focus input
+        setTimeout(() => passwordInput.focus(), 100);
+
+        // Handle submit
+        const handleSubmit = async () => {
+            const password = passwordInput.value.trim();
+            if (!password) {
+                errorDiv.textContent = 'Please enter a time';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/unlock-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    modal.remove();
+                    location.reload();
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid password';
+                    errorDiv.style.display = 'block';
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        };
+
+        // Event listeners
+        submitBtn.addEventListener('click', handleSubmit);
+        cancelBtn.addEventListener('click', () => modal.remove());
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSubmit();
+        });
+
+        // Close on outside click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+</script>
+{% endblock %}

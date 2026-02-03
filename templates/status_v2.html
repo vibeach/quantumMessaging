@@ -1,0 +1,214 @@
+{% extends "base_v2.html" %}
+
+{% block title %}Online Status - Telegram Monitor{% endblock %}
+
+{% block content %}
+<!-- Current Status Summary -->
+{% if history %}
+<div class="current-status-card">
+    {% set latest = history[0] %}
+    <div class="current-status-indicator {{ latest.status }}"></div>
+    <div class="current-status-info">
+        <div class="current-status-user">{{ latest.username }}</div>
+        <div class="current-status-text {{ latest.status }}">
+            {% if latest.status == 'online' %}
+                Currently Online
+            {% elif latest.status == 'offline' %}
+                Offline
+            {% else %}
+                Recently Active
+            {% endif %}
+        </div>
+    </div>
+    <div class="current-status-time">
+        Last updated: {{ latest.timestamp }}
+    </div>
+</div>
+{% endif %}
+
+<!-- Timeline Visualization -->
+{% if history %}
+<div class="card-custom timeline-card">
+    <div class="card-header-custom">
+        <h2 class="card-title">
+            <i class="bi bi-graph-up"></i>
+            Activity Timeline
+        </h2>
+    </div>
+    <div class="timeline-grid">
+        {% for entry in history[:48] %}
+        <div class="timeline-dot {{ entry.status }}"
+             title="{{ entry.timestamp }} - {{ entry.status }}">
+        </div>
+        {% endfor %}
+    </div>
+    <div class="timeline-legend">
+        <div class="legend-item">
+            <div class="legend-dot" style="background: var(--accent-green);"></div>
+            Online
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: var(--accent-red);"></div>
+            Offline
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: var(--accent-yellow);"></div>
+            Recently
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Status History -->
+<div class="card-custom" style="margin-top: 20px;">
+    <div class="card-header-custom">
+        <h2 class="card-title">
+            <i class="bi bi-clock-history"></i>
+            Status History
+        </h2>
+        <button class="btn-refresh" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i>
+            Refresh
+        </button>
+    </div>
+
+    <div class="status-list">
+        {% if history %}
+            {% for entry in history %}
+            <div class="status-item">
+                <div class="status-indicator {{ entry.status }}"></div>
+                <div class="status-details">
+                    <div class="status-user">{{ entry.username }}</div>
+                    <div class="status-label {{ entry.status }}">
+                        {% if entry.status == 'online' %}
+                            Came online
+                        {% elif entry.status == 'offline' %}
+                            Went offline
+                        {% else %}
+                            Recently active
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="status-time">
+                    <div>{{ entry.timestamp }}</div>
+                    {% if entry.last_seen %}
+                    <small style="color: var(--text-muted);">Last seen: {{ entry.last_seen }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="bi bi-activity"></i>
+                <p>No status changes recorded yet.<br>The monitor will track when the user goes online/offline.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination-custom">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}" class="page-btn">
+        <i class="bi bi-chevron-left"></i>
+        Newer
+    </a>
+    {% else %}
+    <div></div>
+    {% endif %}
+
+    {% if has_more %}
+    <a href="?page={{ page + 1 }}" class="page-btn">
+        Older
+        <i class="bi bi-chevron-right"></i>
+    </a>
+    {% endif %}
+</div>
+
+<style>
+    .current-status-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .current-status-indicator {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .current-status-indicator.online {
+        background: var(--accent-green);
+        box-shadow: 0 0 20px var(--accent-green);
+        animation: glow 2s infinite;
+    }
+
+    .current-status-indicator.offline {
+        background: var(--accent-red);
+    }
+
+    .current-status-indicator.recently {
+        background: var(--accent-yellow);
+    }
+
+    @keyframes glow {
+        0%, 100% { box-shadow: 0 0 20px var(--accent-green); }
+        50% { box-shadow: 0 0 30px var(--accent-green), 0 0 40px var(--accent-green); }
+    }
+
+    .current-status-info {
+        flex: 1;
+    }
+
+    .current-status-user {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .current-status-text {
+        font-size: 0.95rem;
+    }
+
+    .current-status-text.online { color: var(--accent-green); }
+    .current-status-text.offline { color: var(--accent-red); }
+    .current-status-text.recently { color: var(--accent-yellow); }
+
+    .current-status-time {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-align: right;
+    }
+
+    .status-list {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    @media (max-width: 768px) {
+        .current-status-card {
+            flex-direction: column;
+            text-align: center;
+            gap: 12px;
+        }
+
+        .current-status-time {
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh every 60 seconds
+    setTimeout(() => location.reload(), 60000);
+</script>
+{% endblock %}

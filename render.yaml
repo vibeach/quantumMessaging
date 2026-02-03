@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: telegram-monitor
+    runtime: python
+    plan: starter  # $7/month - cheapest with persistent disk
+    buildCommand: pip install -r requirements.txt && npm install -g @anthropic-ai/claude-code
+    startCommand: bash start.sh
+    healthCheckPath: /login
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: RENDER
+        value: "true"
+      - key: TELEGRAM_API_ID
+        sync: false  # Set manually in Render dashboard
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: SESSION_STRING
+        sync: false  # Generate with: python generate_session.py
+      - key: TARGET_USER
+        sync: false
+      - key: MY_NAME
+        sync: false
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false  # For API mode
+      - key: CLAUDE_CODE_OAUTH_TOKEN
+        sync: false  # For CLI mode - get via: claude auth token
+      - key: LAB2_EMBED_URL
+        value: https://quantumlab-73wx.onrender.com/admin.html
+    disk:
+      name: telegram-data
+      mountPath: /data
+      sizeGB: 1  # 1GB should be plenty for SQLite + media

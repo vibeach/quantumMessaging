@@ -1,0 +1,378 @@
+{% extends "base_v6.html" %}
+
+{% block title %}State{% endblock %}
+
+{% block content %}
+<!-- Top bar -->
+<div class="top-bar card">
+    <div class="refresh-info">
+        <span class="page-title">Activity & State</span>
+        <span class="refresh-time">Last refresh: {{ last_refresh }}</span>
+        <a href="?page={{ page }}" onclick="location.reload();return false;" class="refresh-btn">Refresh</a>
+    </div>
+</div>
+
+<!-- Current status -->
+{% if history %}
+<div class="current-status card">
+    <div class="status-now">
+        {% set latest = history[0] %}
+        <span class="status-dot {{ latest.status }}"></span>
+        <span class="status-text">
+            {% if latest.status == 'online' %}Currently Online
+            {% elif latest.status == 'offline' %}Offline
+            {% elif latest.status == 'recently' %}Recently Active
+            {% else %}{{ latest.status }}{% endif %}
+        </span>
+        <span class="status-time">since {{ latest.timestamp[11:16] if latest.timestamp else '' }}</span>
+    </div>
+    {% if latest.last_seen %}
+    <div class="last-seen-detail">Last seen: {{ latest.last_seen }}</div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Ignore Detection Alert -->
+{% if ignore_sessions %}
+<div class="ignore-alert card">
+    <h3>Ignored Messages Detected</h3>
+    <p class="ignore-summary">{{ ignore_sessions|length }} session(s) where she went online but didn't read your message</p>
+    <div class="ignore-list">
+        {% for evt in ignore_sessions[:10] %}
+        <div class="ignore-item">
+            <span class="ignore-date">{{ evt.date }}</span>
+            <span class="ignore-time">{{ evt.start[11:16] }} - {{ evt.end[11:16] }}</span>
+            <span class="ignore-duration">({{ evt.duration_mins }}m online)</span>
+            <span class="ignore-count">{{ evt.unseen_messages }} msg{% if evt.unseen_messages > 1 %}s{% endif %} ignored</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Status Accuracy Info -->
+{% if status_inferred and status_inferred.gap_count > 0 %}
+<div class="accuracy-info card">
+    <h3>Status Accuracy</h3>
+    <p>{{ status_inferred.gap_count }} time(s) she sent messages but no online status was logged</p>
+    <p class="accuracy-hint">This happens when status monitoring was offline or she has privacy settings enabled</p>
+</div>
+{% endif %}
+
+<!-- Visual Timeline Chart (last 24h) -->
+<div class="timeline-chart card">
+    <h3>Activity Timeline (24h)</h3>
+    <div class="chart-hours">
+        {% for h in range(24) %}
+        <span class="hour-mark">{{ '%02d' % h }}</span>
+        {% endfor %}
+    </div>
+    <div class="chart-bars" id="timeline-bars">
+        <!-- Filled by JavaScript -->
+    </div>
+    <div class="chart-legend">
+        <span class="legend-online">Online</span>
+        <span class="legend-msg-in">Her message</span>
+        <span class="legend-msg-out">Your message</span>
+        <span class="legend-ignore">Ignored</span>
+    </div>
+</div>
+
+<!-- Combined Activity Timeline -->
+<div class="activity-timeline card">
+    <h3>Recent Activity</h3>
+    <div class="timeline-stream">
+        {% set current_date = namespace(value='') %}
+        {% for item in activity_timeline[:50] %}
+            {% set item_date = item.timestamp[:10] if item.timestamp else '' %}
+            {% if item_date != current_date.value %}
+                {% set current_date.value = item_date %}
+                <div class="date-header">{{ item_date }}</div>
+            {% endif %}
+            <div class="timeline-entry {{ item.type }} {{ item.detail }}">
+                <span class="entry-time">{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                {% if item.type == 'status' %}
+                    <span class="entry-dot {{ item.detail }}"></span>
+                    <span class="entry-label">{{ item.detail }}</span>
+                {% elif item.type == 'message' %}
+                    {% if item.detail == 'sent' %}
+                        <span class="entry-arrow out">→</span>
+                        <span class="entry-label">You sent</span>
+                        {% if not item.seen %}
+                        <span class="unseen-badge">unread</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="entry-arrow in">←</span>
+                        <span class="entry-label">She sent</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Sessions with Duration -->
+{% if sessions %}
+<div class="sessions-card card">
+    <h3>Online Sessions</h3>
+    <div class="sessions-chart">
+        {% set max_duration = sessions|map(attribute='duration_mins')|max or 1 %}
+        {% for s in sessions[:20] %}
+        <div class="session-bar" title="{{ s.date }} {{ s.start[11:16] }}-{{ s.end[11:16] }}: {{ s.duration_mins }}m">
+            <div class="bar-fill" style="height: {{ (s.duration_mins / max_duration * 100)|int }}%"></div>
+            <span class="bar-duration">{{ s.duration_mins }}m</span>
+            <span class="bar-date">{{ s.start[5:10] }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Daily Status Counts -->
+{% if status_summary and status_summary.by_day %}
+<div class="daily-status card">
+    <h3>Daily Activity</h3>
+    <div class="daily-chart">
+        {% set max_daily = status_summary.by_day|map(attribute='online')|max or 1 %}
+        {% for d in status_summary.by_day %}
+        <div class="daily-bar">
+            <div class="bar-stack">
+                <div class="bar-online" style="height: {{ (d.online / max_daily * 80)|int }}px" title="{{ d.online }} online"></div>
+                <div class="bar-offline" style="height: {{ (d.offline / max_daily * 40)|int }}px" title="{{ d.offline }} offline"></div>
+            </div>
+            <span class="bar-label">{{ d.date[5:] }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Raw Timeline -->
+<div class="status-list card">
+    <h3>Status Log</h3>
+    {% if history %}
+    <div class="timeline">
+        {% set current_date = namespace(value='') %}
+        {% for item in history %}
+            {% set item_date = item.timestamp[:10] if item.timestamp else '' %}
+            {% if item_date != current_date.value %}
+                {% set current_date.value = item_date %}
+                <div class="date-separator">{{ item_date }}</div>
+            {% endif %}
+            <div class="timeline-item {{ item.status }}">
+                <div class="timeline-dot {{ item.status }}"></div>
+                <div class="timeline-content">
+                    <span class="timeline-time">{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                    <span class="status-badge {{ item.status }}">{{ item.status }}</span>
+                    {% if item.last_seen %}
+                    <span class="timeline-lastseen">{{ item.last_seen }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <div class="empty">No status history yet</div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}">&larr; Newer</a>{% endif %}
+    <span class="page-num">{{ page }}</span>
+    {% if has_more %}<a href="?page={{ page + 1 }}">Older &rarr;</a>{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar { padding: 12px; margin-bottom: 12px; }
+    .refresh-info { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-muted); }
+    .page-title { font-weight: 600; color: var(--text); font-size: 14px; flex: 1; }
+    .refresh-btn { color: var(--accent); text-decoration: none; }
+
+    .current-status { padding: 16px; margin-bottom: 12px; text-align: center; }
+    .status-now { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; animation: pulse 2s infinite; }
+    .status-dot.online { background: #10b981; }
+    .status-dot.offline { background: #6b7280; animation: none; }
+    .status-dot.recently { background: #f59e0b; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .status-text { font-weight: 600; }
+    .status-time { color: var(--text-muted); font-size: 12px; }
+    .last-seen-detail { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+
+    /* Ignore Alert */
+    .ignore-alert { padding: 16px; margin-bottom: 12px; background: #fef2f2; border: 1px solid #fecaca; }
+    .ignore-alert h3 { color: #dc2626; font-size: 14px; margin-bottom: 8px; }
+    .ignore-summary { font-size: 12px; color: #991b1b; margin-bottom: 12px; }
+    .ignore-list { display: flex; flex-direction: column; gap: 6px; }
+    .ignore-item { display: flex; align-items: center; gap: 12px; padding: 8px; background: white; border-radius: 4px; font-size: 11px; }
+    .ignore-date { font-weight: 500; min-width: 70px; }
+    .ignore-time { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
+    .ignore-duration { color: #9ca3af; font-size: 10px; }
+    .ignore-count { margin-left: auto; background: #dc2626; color: white; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+
+    /* Accuracy Info */
+    .accuracy-info { padding: 16px; margin-bottom: 12px; background: #fffbeb; border: 1px solid #fde68a; }
+    .accuracy-info h3 { font-size: 13px; margin-bottom: 6px; color: #b45309; }
+    .accuracy-info p { font-size: 12px; color: #92400e; margin: 0; }
+    .accuracy-hint { font-size: 11px !important; color: #a16207 !important; margin-top: 4px !important; }
+
+    /* Timeline Chart */
+    .timeline-chart { padding: 16px; margin-bottom: 12px; }
+    .timeline-chart h3 { font-size: 13px; margin-bottom: 12px; }
+    .chart-hours { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-muted); padding: 0 2px; margin-bottom: 4px; }
+    .chart-bars { height: 60px; display: flex; gap: 1px; background: var(--bg); border-radius: 4px; overflow: hidden; position: relative; }
+    .chart-bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+    .chart-bar .online { background: #10b981; }
+    .chart-bar .msg-in { background: #3b82f6; }
+    .chart-bar .msg-out { background: #8b5cf6; }
+    .chart-bar .ignore { background: #ef4444; }
+    .chart-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 10px; }
+    .legend-online::before, .legend-msg-in::before, .legend-msg-out::before, .legend-ignore::before {
+        content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle;
+    }
+    .legend-online::before { background: #10b981; }
+    .legend-msg-in::before { background: #3b82f6; }
+    .legend-msg-out::before { background: #8b5cf6; }
+    .legend-ignore::before { background: #ef4444; }
+
+    /* Activity Timeline */
+    .activity-timeline { padding: 16px; margin-bottom: 12px; }
+    .activity-timeline h3 { font-size: 13px; margin-bottom: 12px; }
+    .timeline-stream { max-height: 300px; overflow-y: auto; }
+    .date-header { font-size: 11px; font-weight: 600; color: var(--text-muted); padding: 8px 0 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+    .timeline-entry { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; }
+    .entry-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); min-width: 40px; }
+    .entry-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .entry-dot.online { background: #10b981; }
+    .entry-dot.offline { background: #6b7280; }
+    .entry-dot.recently { background: #f59e0b; }
+    .entry-arrow { font-weight: bold; }
+    .entry-arrow.out { color: #8b5cf6; }
+    .entry-arrow.in { color: #3b82f6; }
+    .entry-label { color: var(--text); }
+    .unseen-badge { background: #fef3c7; color: #b45309; padding: 1px 6px; border-radius: 8px; font-size: 10px; }
+
+    /* Sessions Chart */
+    .sessions-card { padding: 16px; margin-bottom: 12px; }
+    .sessions-card h3 { font-size: 13px; margin-bottom: 12px; }
+    .sessions-chart { display: flex; gap: 4px; height: 100px; align-items: flex-end; overflow-x: auto; padding-bottom: 4px; }
+    .session-bar { display: flex; flex-direction: column; align-items: center; min-width: 28px; height: 100%; }
+    .session-bar .bar-fill { width: 20px; background: linear-gradient(to top, #10b981, #34d399); border-radius: 3px 3px 0 0; min-height: 4px; }
+    .bar-duration { font-size: 8px; color: var(--text-muted); margin-top: 2px; }
+    .bar-date { font-size: 8px; color: #9ca3af; }
+
+    /* Daily Chart */
+    .daily-status { padding: 16px; margin-bottom: 12px; }
+    .daily-status h3 { font-size: 13px; margin-bottom: 12px; }
+    .daily-chart { display: flex; gap: 8px; align-items: flex-end; overflow-x: auto; }
+    .daily-bar { display: flex; flex-direction: column; align-items: center; min-width: 40px; }
+    .bar-stack { display: flex; flex-direction: column; align-items: center; }
+    .bar-online { width: 24px; background: #10b981; border-radius: 3px 3px 0 0; min-height: 2px; }
+    .bar-offline { width: 24px; background: #9ca3af; min-height: 1px; }
+    .bar-label { font-size: 9px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Status List */
+    .status-list { padding: 16px; margin-bottom: 12px; }
+    .status-list h3 { font-size: 13px; margin-bottom: 12px; }
+    .timeline { max-height: 400px; overflow-y: auto; }
+    .date-separator { padding: 8px 0 4px; font-size: 11px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+    .timeline-item { display: flex; align-items: center; padding: 8px 0; padding-left: 20px; position: relative; border-bottom: 1px solid #f5f5f5; }
+    .timeline-item:last-child { border-bottom: none; }
+    .timeline-dot { position: absolute; left: 0; width: 8px; height: 8px; border-radius: 50%; }
+    .timeline-dot.online { background: #10b981; }
+    .timeline-dot.offline { background: #6b7280; }
+    .timeline-dot.recently { background: #f59e0b; }
+    .timeline-content { display: flex; align-items: center; gap: 12px; flex: 1; }
+    .timeline-time { font-family: 'JetBrains Mono', monospace; font-size: 12px; min-width: 45px; }
+    .status-badge { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 500; text-transform: uppercase; }
+    .status-badge.online { background: #d1fae5; color: #047857; }
+    .status-badge.offline { background: #f3f4f6; color: #4b5563; }
+    .status-badge.recently { background: #fef3c7; color: #b45309; }
+    .timeline-lastseen { font-size: 11px; color: var(--text-muted); }
+    .timeline-item.online { background: #f0fdf4; }
+
+    .empty { padding: 40px; text-align: center; color: var(--text-muted); }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 20px; padding: 16px; font-size: 13px; }
+    .pagination a { color: var(--accent); text-decoration: none; }
+    .page-num { color: var(--text-muted); }
+
+    @media (max-width: 600px) {
+        .ignore-item { flex-wrap: wrap; }
+        .sessions-chart { height: 80px; }
+        .session-bar { min-width: 24px; }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Build 24h timeline chart from activity data
+    const activityData = {{ activity_timeline | tojson | safe }};
+    const ignoreSessions = {{ ignore_sessions | tojson | safe }};
+
+    function buildTimelineChart() {
+        const barsContainer = document.getElementById('timeline-bars');
+        if (!barsContainer) return;
+
+        const now = new Date();
+        const bars = [];
+
+        // Create 24 hour slots
+        for (let h = 0; h < 24; h++) {
+            bars.push({ hour: h, online: 0, msgIn: 0, msgOut: 0, ignore: 0 });
+        }
+
+        // Fill in activity data
+        activityData.forEach(item => {
+            const ts = item.timestamp;
+            if (!ts) return;
+
+            const date = new Date(ts.replace(' ', 'T') + 'Z');
+            const hoursDiff = (now - date) / (1000 * 60 * 60);
+
+            if (hoursDiff <= 24) {
+                const hour = date.getHours();
+                if (item.type === 'status' && item.detail === 'online') {
+                    bars[hour].online++;
+                } else if (item.type === 'message') {
+                    if (item.detail === 'sent') {
+                        bars[hour].msgOut++;
+                    } else {
+                        bars[hour].msgIn++;
+                    }
+                }
+            }
+        });
+
+        // Mark ignore hours
+        ignoreSessions.forEach(sess => {
+            const start = new Date(sess.start.replace(' ', 'T') + 'Z');
+            const hoursDiff = (now - start) / (1000 * 60 * 60);
+            if (hoursDiff <= 24) {
+                const hour = start.getHours();
+                bars[hour].ignore++;
+            }
+        });
+
+        // Render bars
+        barsContainer.innerHTML = bars.map(b => {
+            const height = Math.min((b.online + b.msgIn + b.msgOut) * 10, 100);
+            let color = '#e5e7eb';
+            if (b.ignore > 0) color = '#ef4444';
+            else if (b.online > 0) color = '#10b981';
+            else if (b.msgIn > 0) color = '#3b82f6';
+            else if (b.msgOut > 0) color = '#8b5cf6';
+
+            return `<div class="chart-bar"><div style="height:${height}%;background:${color}"></div></div>`;
+        }).join('');
+    }
+
+    buildTimelineChart();
+
+    // Auto-refresh every 30 seconds
+    setTimeout(() => location.reload(), 30000);
+</script>
+{% endblock %}

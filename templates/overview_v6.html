@@ -1,0 +1,1123 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Stats{% endblock %}
+
+{% block content %}
+<!-- Top bar -->
+<div class="top-bar card">
+    <div class="refresh-info">
+        <span class="page-title">Messaging Statistics</span>
+        <div class="date-range-selector">
+            <a href="?days=7" class="range-btn {% if selected_days == 7 %}active{% endif %}">7d</a>
+            <a href="?days=30" class="range-btn {% if selected_days == 30 %}active{% endif %}">30d</a>
+            <a href="?days=90" class="range-btn {% if selected_days == 90 %}active{% endif %}">90d</a>
+            <a href="?days=365" class="range-btn {% if selected_days == 365 %}active{% endif %}">1y</a>
+            <a href="?days=0" class="range-btn {% if not selected_days %}active{% endif %}">All</a>
+        </div>
+        <span class="refresh-time">{{ last_refresh }}</span>
+        <a href="" onclick="location.reload();return false;" class="refresh-btn">Refresh</a>
+    </div>
+</div>
+
+<!-- Message Timeline -->
+<div class="section card tl-section">
+    <div class="tl-row">
+        <div class="tl-range-btns">
+            <button class="tl-btn" data-hours="1">1h</button>
+            <button class="tl-btn active" data-hours="4">4h</button>
+            <button class="tl-btn" data-hours="12">12h</button>
+            <button class="tl-btn" data-hours="24">24h</button>
+        </div>
+        <div class="tl-container">
+            <div class="tl-line" id="tl-line"></div>
+            <div class="tl-times">
+                <span id="tl-start">-4h</span>
+                <span id="tl-end">now</span>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const messages = {{ message_timeline | tojson }};
+
+    console.log('Timeline messages:', messages.length, messages.slice(0, 3));
+
+    function render(hours) {
+        const line = document.getElementById('tl-line');
+        line.innerHTML = '';
+
+        const now = Date.now();
+        const start = now - hours * 60 * 60 * 1000;
+        const range = hours * 60 * 60 * 1000;
+
+        // Update time label
+        document.getElementById('tl-start').textContent = '-' + hours + 'h';
+
+        // Update active button
+        document.querySelectorAll('.tl-btn').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.hours) === hours);
+        });
+
+        let rendered = 0;
+        messages.forEach(msg => {
+            // Parse timestamp as LOCAL time (not UTC)
+            let ts = msg.timestamp;
+            if (!ts) return;
+
+            // Replace space with T for parsing, but don't add Z (keep as local)
+            ts = ts.replace(' ', 'T');
+            const time = new Date(ts).getTime();
+
+            // Skip if outside range
+            if (time < start || time > now) return;
+
+            // Calculate position (0% = start, 100% = now)
+            const pct = ((time - start) / range) * 100;
+
+            // Create tick mark
+            const tick = document.createElement('div');
+            tick.className = 'tl-tick ' + (msg.from_me ? 'me' : 'them');
+            tick.style.left = pct + '%';
+            tick.title = msg.timestamp.substring(11, 16);
+
+            line.appendChild(tick);
+            rendered++;
+        });
+
+        console.log('Timeline rendered:', rendered, 'messages for', hours, 'hours');
+    }
+
+    // Initial render
+    render(4);
+
+    // Button clicks
+    document.querySelectorAll('.tl-btn').forEach(btn => {
+        btn.onclick = () => render(parseInt(btn.dataset.hours));
+    });
+})();
+</script>
+
+<!-- All-Time Stats -->
+{% if all_time_stats %}
+<div class="section card">
+    <h3>All-Time Statistics</h3>
+    <div class="all-time-grid">
+        <div class="stat-box">
+            <span class="stat-value blue">{{ all_time_stats.my_count }}</span>
+            <span class="stat-label">Me</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value dark">{{ all_time_stats.their_count }}</span>
+            <span class="stat-label">Them</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value">{{ all_time_stats.total }}</span>
+            <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-box {% if all_time_stats.balance > 0 %}positive{% elif all_time_stats.balance < 0 %}negative{% endif %}">
+            <span class="stat-value">{% if all_time_stats.balance > 0 %}+{% endif %}{{ all_time_stats.balance }}</span>
+            <span class="stat-label">Balance</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value">{{ all_time_stats.ratio }}x</span>
+            <span class="stat-label">Ratio (Me:Them)</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value">{{ all_time_stats.avg_per_day }}</span>
+            <span class="stat-label">Avg/Day</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value">{{ all_time_stats.active_days }}</span>
+            <span class="stat-label">Active Days</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value">{{ all_time_stats.max_streak }}</span>
+            <span class="stat-label">Max Streak</span>
+        </div>
+    </div>
+    <div class="all-time-extra">
+        <span class="extra-item">First: {{ all_time_stats.first_message[:10] if all_time_stats.first_message else 'N/A' }}</span>
+        <span class="extra-item">Last: {{ all_time_stats.last_message[:10] if all_time_stats.last_message else 'N/A' }}</span>
+        <span class="extra-item">Deleted: {{ all_time_stats.deleted_count }}</span>
+        <span class="extra-item">My avg length: {{ all_time_stats.my_avg_length }} chars</span>
+        <span class="extra-item">Their avg length: {{ all_time_stats.their_avg_length }} chars</span>
+    </div>
+    <!-- Balance indicator bar -->
+    <div class="balance-bar-container">
+        <div class="balance-bar">
+            {% set total = all_time_stats.my_count + all_time_stats.their_count %}
+            {% set my_pct = (all_time_stats.my_count / total * 100) if total > 0 else 50 %}
+            <div class="balance-me" style="width: {{ my_pct }}%"></div>
+            <div class="balance-them" style="width: {{ 100 - my_pct }}%"></div>
+        </div>
+        <div class="balance-labels">
+            <span class="label-me">Me {{ '%.1f' % my_pct }}%</span>
+            <span class="label-them">Them {{ '%.1f' % (100 - my_pct) }}%</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Monthly Stats Chart -->
+{% if monthly_stats %}
+<div class="section card">
+    <h3>Monthly Messages (Me vs Them)</h3>
+    <div class="monthly-chart">
+        {% set max_monthly = monthly_stats|map(attribute='total')|max or 1 %}
+        {% for m in monthly_stats[:12] %}
+        <div class="month-col" title="{{ m.month }}: Me {{ m.me }}, Them {{ m.them }}, Balance {{ '%+d' % m.balance }}">
+            <div class="month-bars">
+                <div class="month-bar me" style="height: {{ (m.me / max_monthly * 100)|int }}%">
+                    <span class="bar-val">{{ m.me }}</span>
+                </div>
+                <div class="month-bar them" style="height: {{ (m.them / max_monthly * 100)|int }}%">
+                    <span class="bar-val">{{ m.them }}</span>
+                </div>
+            </div>
+            <span class="month-label">{{ m.month[2:] }}</span>
+            <span class="month-balance {% if m.balance > 0 %}positive{% elif m.balance < 0 %}negative{% endif %}">
+                {% if m.balance > 0 %}+{% endif %}{{ m.balance }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="chart-legend">
+        <span class="legend-me">Me (blue)</span>
+        <span class="legend-them">Them (dark)</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- Hourly Pattern Chart (All-Time) -->
+{% if hourly_pattern %}
+<div class="section card">
+    <h3>Hourly Activity Pattern (All-Time)</h3>
+    <div class="hourly-pattern-chart">
+        {% set max_hour = (hourly_pattern|map(attribute='me')|max, hourly_pattern|map(attribute='them')|max)|max or 1 %}
+        {% for h in hourly_pattern %}
+        <div class="hour-col" title="{{ '%02d' % h.hour }}:00 - Me {{ h.me }}, Them {{ h.them }}">
+            <div class="hour-bars">
+                <div class="hour-bar me" style="height: {{ (h.me / max_hour * 100)|int }}%"></div>
+                <div class="hour-bar them" style="height: {{ (h.them / max_hour * 100)|int }}%"></div>
+            </div>
+            <span class="hour-label">{{ '%02d' % h.hour }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="chart-legend">
+        <span class="legend-me">Me (blue)</span>
+        <span class="legend-them">Them (dark)</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- Weekday Pattern Chart (All-Time) -->
+{% if weekday_pattern %}
+<div class="section card">
+    <h3>Activity by Day of Week (All-Time)</h3>
+    <div class="weekday-pattern-chart">
+        {% set max_day = (weekday_pattern|map(attribute='me')|max, weekday_pattern|map(attribute='them')|max)|max or 1 %}
+        {% for d in weekday_pattern %}
+        <div class="weekday-col" title="{{ d.day }} - Me {{ d.me }}, Them {{ d.them }}">
+            <div class="weekday-bars">
+                <div class="weekday-bar me" style="height: {{ (d.me / max_day * 100)|int }}%">
+                    <span class="bar-val">{{ d.me }}</span>
+                </div>
+                <div class="weekday-bar them" style="height: {{ (d.them / max_day * 100)|int }}%">
+                    <span class="bar-val">{{ d.them }}</span>
+                </div>
+            </div>
+            <span class="weekday-label">{{ d.day }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="chart-legend">
+        <span class="legend-me">Me (blue)</span>
+        <span class="legend-them">Them (dark)</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- View Time Chart -->
+{% if view_time_stats and view_time_stats.daily_avg %}
+<div class="section card">
+    <h3>Average Time Before Viewed (by day)</h3>
+    {% if view_time_stats.overall_avg %}
+    <div class="view-time-summary">
+        Overall average: <strong>{{ view_time_stats.overall_avg|round|int }} min</strong>
+        ({{ view_time_stats.total_seen }} messages tracked)
+    </div>
+    {% endif %}
+    <div class="view-time-chart">
+        {% set max_view = view_time_stats.daily_avg|map(attribute='avg_mins')|max or 1 %}
+        {% for d in view_time_stats.daily_avg|reverse %}
+        <div class="view-bar" title="{{ d.date }}: avg {{ d.avg_mins|round|int }} min ({{ d.count }} messages)">
+            <div class="view-bar-fill" style="height: {{ (d.avg_mins / max_view * 100)|int }}%"></div>
+            <span class="view-label">{{ d.date[5:] }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Hourly Activity Heatmap (multi-day timeline) -->
+{% if hourly_heatmap %}
+<div class="section card">
+    <h3>Hourly Activity (Last 7 Days)</h3>
+    <div class="heatmap-container">
+        <div class="heatmap-hours">
+            <span></span>
+            {% for h in range(24) %}
+            <span class="hour-head">{{ '%02d' % h }}</span>
+            {% endfor %}
+        </div>
+        {% for day in hourly_heatmap %}
+        <div class="heatmap-row">
+            <span class="heatmap-date">{{ day.date[5:] }}</span>
+            {% for hd in day.hours %}
+            <span class="heatmap-cell {% if hd.total > 0 %}has-activity{% endif %}"
+                  style="--intensity: {{ (hd.total / 20)|round(2) if hd.total < 20 else 1 }}; --me-ratio: {{ (hd.me / hd.total)|round(2) if hd.total > 0 else 0.5 }}"
+                  title="{{ day.date }} {{ '%02d' % hd.hour }}:00 - Me: {{ hd.me }}, Them: {{ hd.them }}">
+                {% if hd.total > 0 %}{{ hd.total }}{% endif %}
+            </span>
+            {% endfor %}
+            <span class="heatmap-total">{{ day.total }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="heatmap-legend">
+        <span class="legend-me">Me (blue)</span>
+        <span class="legend-them">Them (dark)</span>
+        <span class="legend-scale">Intensity = message count</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- Daily Activity Chart (both users) -->
+{% if daily_trend %}
+<div class="section card">
+    <h3>Daily Activity (Last 30 Days)</h3>
+    <div class="dual-chart">
+        {% set max_daily = daily_trend|map(attribute='total')|max or 1 %}
+        {% for d in daily_trend|reverse %}
+        <div class="dual-bar" title="{{ d.date }}: Me {{ d.from_me }}, Them {{ d.from_them }}">
+            <div class="dual-bar-inner">
+                <div class="bar-me" style="height: {{ (d.from_me / max_daily * 100)|int }}%"></div>
+                <div class="bar-them" style="height: {{ (d.from_them / max_daily * 100)|int }}%"></div>
+            </div>
+            <span class="dual-label">{{ d.date[5:] }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="chart-legend">
+        <span class="legend-me">Me</span>
+        <span class="legend-them">Them</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- Daily message stats table -->
+<div class="section card">
+    <h3>Daily Messages</h3>
+    <div class="daily-table">
+        <div class="table-header">
+            <span class="col-date">Date</span>
+            <span class="col-me">Me</span>
+            <span class="col-them">Them</span>
+            <span class="col-total">Total</span>
+            <span class="col-balance">Balance</span>
+        </div>
+        {% for day in daily_stats[:30] %}
+        <div class="table-row">
+            <span class="col-date">{{ day.date }}</span>
+            <span class="col-me">
+                <span class="bar me" style="width: {{ (day.from_me / (daily_stats|map(attribute='from_me')|max or 1) * 100)|int }}%"></span>
+                {{ day.from_me }}
+            </span>
+            <span class="col-them">
+                <span class="bar them" style="width: {{ (day.from_them / (daily_stats|map(attribute='from_them')|max or 1) * 100)|int }}%"></span>
+                {{ day.from_them }}
+            </span>
+            <span class="col-total">{{ day.total }}</span>
+            <span class="col-balance {% if day.balance > 0 %}positive{% elif day.balance < 0 %}negative{% endif %}">
+                {% if day.balance > 0 %}+{% endif %}{{ day.balance }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .refresh-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .page-title {
+        font-weight: 600;
+        color: var(--text);
+        font-size: 14px;
+        flex: 1;
+    }
+
+    .refresh-btn {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .date-range-selector {
+        display: flex;
+        gap: 4px;
+    }
+
+    .range-btn {
+        padding: 4px 10px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        background: var(--bg);
+        transition: all 0.2s;
+    }
+
+    .range-btn:hover {
+        background: var(--border);
+    }
+
+    .range-btn.active {
+        background: var(--accent);
+        color: white;
+    }
+
+    .section {
+        margin-bottom: 12px;
+        padding: 16px;
+    }
+
+    .section h3 {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: var(--text);
+    }
+
+    /* Timeline styles */
+    .tl-section {
+        padding: 10px 16px;
+    }
+
+    .tl-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .tl-range-btns {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .tl-btn {
+        padding: 4px 10px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        background: var(--bg);
+        color: var(--text-muted);
+    }
+
+    .tl-btn:hover {
+        background: var(--border);
+    }
+
+    .tl-btn.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+    }
+
+    .tl-container {
+        flex: 1;
+        padding: 0;
+    }
+
+    .tl-line {
+        position: relative;
+        height: 3px;
+        background: var(--border);
+        border-radius: 2px;
+    }
+
+    .tl-tick {
+        position: absolute;
+        width: 2px;
+        height: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+    }
+
+    .tl-tick.them {
+        background: #1f1f1f;
+    }
+
+    .tl-tick.me {
+        background: #2563eb;
+    }
+
+    [data-theme="dark"] .tl-tick.them {
+        background: #e5e5e5;
+    }
+
+    .tl-tick:hover {
+        width: 4px;
+        height: 28px;
+        z-index: 10;
+    }
+
+    .tl-times {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 4px;
+        font-size: 9px;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* All-time stats grid */
+    .all-time-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .stat-box {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 22px;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stat-value.blue {
+        color: #2563eb;
+    }
+
+    .stat-value.dark {
+        color: #1f1f1f;
+    }
+
+    [data-theme="dark"] .stat-value.dark {
+        color: #e5e5e5;
+    }
+
+    .stat-box.positive .stat-value {
+        color: #10b981;
+    }
+
+    .stat-box.negative .stat-value {
+        color: #ef4444;
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 10px;
+        color: var(--text-muted);
+        margin-top: 4px;
+        text-transform: uppercase;
+    }
+
+    .all-time-extra {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+    }
+
+    .extra-item {
+        background: var(--bg);
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+
+    /* Balance bar */
+    .balance-bar-container {
+        margin-top: 12px;
+    }
+
+    .balance-bar {
+        display: flex;
+        height: 24px;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .balance-me {
+        background: #2563eb;
+        transition: width 0.3s;
+    }
+
+    .balance-them {
+        background: #1f1f1f;
+        transition: width 0.3s;
+    }
+
+    [data-theme="dark"] .balance-them {
+        background: #9ca3af;
+    }
+
+    .balance-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+        font-size: 11px;
+    }
+
+    .label-me {
+        color: #2563eb;
+        font-weight: 500;
+    }
+
+    .label-them {
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    /* Monthly chart */
+    .monthly-chart {
+        display: flex;
+        gap: 8px;
+        height: 180px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+    }
+
+    .month-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 50px;
+        height: 100%;
+    }
+
+    .month-bars {
+        flex: 1;
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        width: 100%;
+        padding-bottom: 30px;
+    }
+
+    .month-bar {
+        flex: 1;
+        border-radius: 3px 3px 0 0;
+        min-height: 2px;
+        position: relative;
+        display: flex;
+        justify-content: center;
+    }
+
+    .month-bar.me {
+        background: #2563eb;
+    }
+
+    .month-bar.them {
+        background: #1f1f1f;
+    }
+
+    [data-theme="dark"] .month-bar.them {
+        background: #9ca3af;
+    }
+
+    .month-bar .bar-val {
+        position: absolute;
+        top: -16px;
+        font-size: 9px;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .month-label {
+        font-size: 10px;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .month-balance {
+        font-size: 9px;
+        font-family: 'JetBrains Mono', monospace;
+        margin-top: 2px;
+    }
+
+    .month-balance.positive {
+        color: #10b981;
+    }
+
+    .month-balance.negative {
+        color: #ef4444;
+    }
+
+    /* Hourly pattern chart */
+    .hourly-pattern-chart {
+        display: flex;
+        gap: 2px;
+        height: 120px;
+        overflow-x: auto;
+    }
+
+    .hour-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 20px;
+        height: 100%;
+    }
+
+    .hour-bars {
+        flex: 1;
+        display: flex;
+        align-items: flex-end;
+        gap: 1px;
+        width: 100%;
+        padding-bottom: 20px;
+    }
+
+    .hour-bar {
+        flex: 1;
+        border-radius: 2px 2px 0 0;
+        min-height: 1px;
+    }
+
+    .hour-bar.me {
+        background: #2563eb;
+    }
+
+    .hour-bar.them {
+        background: #1f1f1f;
+    }
+
+    [data-theme="dark"] .hour-bar.them {
+        background: #9ca3af;
+    }
+
+    .hour-label {
+        font-size: 8px;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Weekday pattern chart */
+    .weekday-pattern-chart {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        height: 150px;
+    }
+
+    .weekday-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        height: 100%;
+    }
+
+    .weekday-bars {
+        flex: 1;
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        width: 100%;
+        padding-bottom: 30px;
+    }
+
+    .weekday-bar {
+        flex: 1;
+        border-radius: 4px 4px 0 0;
+        min-height: 2px;
+        position: relative;
+        display: flex;
+        justify-content: center;
+    }
+
+    .weekday-bar.me {
+        background: #2563eb;
+    }
+
+    .weekday-bar.them {
+        background: #1f1f1f;
+    }
+
+    [data-theme="dark"] .weekday-bar.them {
+        background: #9ca3af;
+    }
+
+    .weekday-bar .bar-val {
+        position: absolute;
+        top: -14px;
+        font-size: 9px;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .weekday-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    /* View time chart */
+    .view-time-summary {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+    }
+
+    .view-time-summary strong {
+        color: var(--text);
+    }
+
+    .view-time-chart {
+        display: flex;
+        gap: 3px;
+        height: 100px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+    }
+
+    .view-bar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 24px;
+        height: 100%;
+    }
+
+    .view-bar-fill {
+        width: 100%;
+        background: linear-gradient(180deg, #ef4444, #f87171);
+        border-radius: 2px 2px 0 0;
+        min-height: 2px;
+        margin-top: auto;
+    }
+
+    .view-label {
+        font-size: 8px;
+        color: var(--text-muted);
+        margin-top: 4px;
+        white-space: nowrap;
+    }
+
+    /* Chart legend */
+    .chart-legend {
+        display: flex;
+        gap: 16px;
+        margin-top: 12px;
+        font-size: 11px;
+    }
+
+    .legend-me::before {
+        content: '';
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        background: #2563eb;
+        border-radius: 2px;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .legend-them::before {
+        content: '';
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        background: #1f1f1f;
+        border-radius: 2px;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    [data-theme="dark"] .legend-them::before {
+        background: #9ca3af;
+    }
+
+    /* Heatmap styles */
+    .heatmap-container {
+        overflow-x: auto;
+        font-size: 10px;
+    }
+
+    .heatmap-hours {
+        display: flex;
+        gap: 2px;
+        margin-bottom: 4px;
+        padding-left: 50px;
+    }
+
+    .hour-head {
+        width: 22px;
+        text-align: center;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 9px;
+    }
+
+    .heatmap-row {
+        display: flex;
+        gap: 2px;
+        margin-bottom: 2px;
+        align-items: center;
+    }
+
+    .heatmap-date {
+        width: 46px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text-muted);
+        text-align: right;
+        padding-right: 4px;
+    }
+
+    .heatmap-cell {
+        width: 22px;
+        height: 22px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 8px;
+        background: var(--bg);
+        color: transparent;
+        transition: all 0.2s;
+    }
+
+    .heatmap-cell.has-activity {
+        background: color-mix(in srgb, #2563eb calc(var(--me-ratio) * 100%), #374151);
+        opacity: calc(0.3 + var(--intensity) * 0.7);
+        color: white;
+    }
+
+    .heatmap-cell:hover {
+        transform: scale(1.2);
+        z-index: 1;
+    }
+
+    .heatmap-total {
+        width: 30px;
+        text-align: right;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--text-muted);
+        padding-left: 6px;
+    }
+
+    .heatmap-legend {
+        display: flex;
+        gap: 16px;
+        margin-top: 12px;
+        font-size: 10px;
+        color: var(--text-muted);
+    }
+
+    /* Dual chart for daily activity */
+    .dual-chart {
+        display: flex;
+        gap: 3px;
+        height: 120px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+    }
+
+    .dual-bar {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 24px;
+        height: 100%;
+    }
+
+    .dual-bar-inner {
+        flex: 1;
+        display: flex;
+        align-items: flex-end;
+        gap: 1px;
+        width: 100%;
+    }
+
+    .bar-me {
+        flex: 1;
+        background: #2563eb;
+        border-radius: 2px 2px 0 0;
+        min-height: 1px;
+    }
+
+    .bar-them {
+        flex: 1;
+        background: #1f1f1f;
+        border-radius: 2px 2px 0 0;
+        min-height: 1px;
+    }
+
+    [data-theme="dark"] .bar-them {
+        background: #9ca3af;
+    }
+
+    .dual-label {
+        font-size: 8px;
+        color: var(--text-muted);
+        margin-top: 4px;
+        white-space: nowrap;
+    }
+
+    /* Daily table */
+    .daily-table {
+        font-size: 12px;
+    }
+
+    .table-header {
+        display: flex;
+        padding: 8px 0;
+        border-bottom: 2px solid var(--border);
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 10px;
+        text-transform: uppercase;
+    }
+
+    .table-row {
+        display: flex;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+        align-items: center;
+    }
+
+    .table-row:last-child {
+        border-bottom: none;
+    }
+
+    .col-date {
+        width: 100px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+    }
+
+    .col-me, .col-them {
+        width: 120px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .col-total {
+        width: 60px;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .col-balance {
+        width: 60px;
+        text-align: right;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+    }
+
+    .col-balance.positive {
+        color: #10b981;
+    }
+
+    .col-balance.negative {
+        color: #ef4444;
+    }
+
+    .bar {
+        height: 6px;
+        border-radius: 3px;
+        display: inline-block;
+    }
+
+    .bar.me {
+        background: #2563eb;
+    }
+
+    .bar.them {
+        background: #6b7280;
+    }
+
+    @media (max-width: 600px) {
+        .all-time-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .col-me, .col-them {
+            width: 80px;
+        }
+
+        .bar {
+            max-width: 40px;
+        }
+
+        .heatmap-cell {
+            width: 16px;
+            height: 16px;
+            font-size: 7px;
+        }
+
+        .hour-head {
+            width: 16px;
+            font-size: 7px;
+        }
+
+        .heatmap-hours {
+            padding-left: 40px;
+        }
+
+        .heatmap-date {
+            width: 36px;
+            font-size: 8px;
+        }
+
+        .monthly-chart {
+            height: 140px;
+        }
+
+        .month-col {
+            min-width: 40px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh every 5 minutes
+    setTimeout(() => location.reload(), 300000);
+</script>
+{% endblock %}

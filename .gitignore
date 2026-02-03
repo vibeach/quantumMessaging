@@ -1,0 +1,18 @@
+# Session files (contain auth tokens!)
+*.session
+*.session-journal
+
+# Database
+*.db
+
+# Media files
+media/
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# IDE
+.vscode/
+.idea/

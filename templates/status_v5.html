@@ -1,0 +1,159 @@
+{% extends "base_v5.html" %}
+
+{% block title %}Activity - TechNotes{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Author Activity</h1>
+    <p class="page-subtitle">Track when authors are online</p>
+</div>
+
+{% if history %}
+<!-- Current status -->
+{% set latest = history[0] %}
+<div class="status-current card">
+    <div class="status-dot {{ latest.status }}"></div>
+    <div class="status-info">
+        <strong>{{ latest.username }}</strong> is currently
+        <span class="status-text {{ latest.status }}">
+            {% if latest.status == 'online' %}online{% elif latest.status == 'offline' %}offline{% else %}away{% endif %}
+        </span>
+    </div>
+    <div class="status-updated">Last updated: {{ latest.timestamp }}</div>
+</div>
+{% endif %}
+
+<!-- Activity log -->
+<div class="card">
+    <div class="activity-header">
+        <h3>Activity Log</h3>
+    </div>
+    <div class="activity-list">
+        {% for entry in history %}
+        <div class="activity-item">
+            <div class="activity-dot {{ entry.status }}"></div>
+            <div class="activity-details">
+                <span class="activity-user">{{ entry.username }}</span>
+                <span class="activity-action">
+                    {% if entry.status == 'online' %}came online{% elif entry.status == 'offline' %}went offline{% else %}was active{% endif %}
+                </span>
+            </div>
+            <div class="activity-time">{{ entry.timestamp }}</div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No activity recorded yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}" class="page-link">&larr; Newer</a>
+    {% endif %}
+    {% if has_more %}
+    <a href="?page={{ page + 1 }}" class="page-link">Older &rarr;</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .status-current {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 24px;
+        margin-bottom: 20px;
+    }
+
+    .status-dot, .activity-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .status-dot.online, .activity-dot.online { background: #198754; }
+    .status-dot.offline, .activity-dot.offline { background: #6c757d; }
+    .status-dot.recently, .activity-dot.recently { background: #ffc107; }
+
+    .status-info {
+        flex: 1;
+    }
+
+    .status-text.online { color: #198754; }
+    .status-text.offline { color: #6c757d; }
+
+    .status-updated {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .activity-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .activity-header h3 {
+        font-family: 'Merriweather', serif;
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .activity-list {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 24px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-details {
+        flex: 1;
+    }
+
+    .activity-user {
+        font-weight: 600;
+    }
+
+    .activity-action {
+        color: var(--text-muted);
+    }
+
+    .activity-time {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state {
+        padding: 40px;
+        text-align: center;
+        color: var(--text-muted);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin: 30px 0;
+    }
+
+    .page-link {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}

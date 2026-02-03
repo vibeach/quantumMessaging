@@ -1,0 +1,435 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Claude Control{% endblock %}
+
+{% block extra_styles %}
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.page-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.refresh-time {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.refresh-btn {
+    margin-left: auto;
+    padding: 6px 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.request-section {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.request-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.request-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.request-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.request-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.request-textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.submit-btn {
+    align-self: flex-end;
+    padding: 10px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.submit-btn:hover {
+    opacity: 0.9;
+}
+
+.submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.log-section {
+    padding: 16px;
+}
+
+.log-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.log-entry {
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    border-left: 3px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.log-entry:hover {
+    transform: translateX(4px);
+}
+
+.log-entry a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.log-entry.pending {
+    border-left-color: #f59e0b;
+}
+
+.log-entry.processing {
+    border-left-color: var(--accent);
+}
+
+.log-entry.completed {
+    border-left-color: #10b981;
+}
+
+.log-entry.error {
+    border-left-color: #ef4444;
+}
+
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.log-status {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--border);
+}
+
+.log-entry.pending .log-status {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.log-entry.processing .log-status {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.log-entry.completed .log-status {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.log-entry.error .log-status {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+[data-theme="dark"] .log-entry.pending .log-status {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+[data-theme="dark"] .log-entry.processing .log-status {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+[data-theme="dark"] .log-entry.completed .log-status {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+[data-theme="dark"] .log-entry.error .log-status {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+.log-time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: auto;
+}
+
+.log-id {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.log-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+.log-text {
+    font-size: 0.9rem;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.log-response {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.success-msg {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    display: none;
+}
+
+[data-theme="dark"] .success-msg {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+.processor-status {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+}
+
+.status-indicator.active .status-dot {
+    background: #10b981;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.status-help {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.status-help code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <span class="page-title">Claude Control</span>
+    <span class="refresh-time">{{ last_refresh }}</span>
+    <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+</div>
+
+<div class="processor-status card" id="processor-status">
+    <div class="status-indicator {{ 'active' if processor_running else 'inactive' }}">
+        <span class="status-dot"></span>
+        <span class="status-text">Processor: {{ 'Running' if processor_running else 'Stopped' }}</span>
+    </div>
+    <div class="status-help">
+        {% if not processor_running %}
+        Start with: <code>python claude_processor.py</code>
+        {% else %}
+        Auto-processing requests every 5s
+        {% endif %}
+    </div>
+</div>
+
+<div class="request-section card">
+    <h3>Request Modification</h3>
+    <form class="request-form" id="request-form">
+        <textarea class="request-textarea" id="request-text" placeholder="Describe what you want Claude to change or add...&#10;&#10;Example: Add a button to export messages as CSV"></textarea>
+        <div class="success-msg" id="success-msg">Request submitted successfully!</div>
+        <button type="submit" class="submit-btn" id="submit-btn">Send Request</button>
+    </form>
+</div>
+
+<div class="log-section card">
+    <h3>Request Log</h3>
+    <div class="log-list" id="log-list">
+        {% if requests %}
+            {% for req in requests %}
+            <a href="{{ url_for('claude_detail', req_id=req.id) }}" class="log-entry {{ req.status }}">
+                <div class="log-header">
+                    <span class="log-status">{{ req.status }}</span>
+                    <span class="log-id">#{{ req.id }}</span>
+                    <span class="log-time">{{ req.created_at[5:16] if req.created_at else '' }}</span>
+                </div>
+                <div class="log-text">{{ req.text[:100] }}{% if req.text|length > 100 %}...{% endif %}</div>
+                <div class="log-hint">Click to view details →</div>
+            </a>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No requests yet. Submit a request above to get started.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const textarea = document.getElementById('request-text');
+const DRAFT_KEY = 'claude_request_draft';
+let isTyping = false;
+let typingTimeout = null;
+
+// Restore draft on page load
+const savedDraft = localStorage.getItem(DRAFT_KEY);
+if (savedDraft) {
+    textarea.value = savedDraft;
+}
+
+// Save draft while typing and track typing state
+textarea.addEventListener('input', () => {
+    localStorage.setItem(DRAFT_KEY, textarea.value);
+    isTyping = true;
+    clearTimeout(typingTimeout);
+    // Consider typing stopped after 5 seconds of no input
+    typingTimeout = setTimeout(() => { isTyping = false; }, 5000);
+});
+
+// Also pause refresh while textarea is focused
+textarea.addEventListener('focus', () => { isTyping = true; });
+textarea.addEventListener('blur', () => {
+    // Small delay before allowing refresh again
+    setTimeout(() => { isTyping = false; }, 1000);
+});
+
+document.getElementById('request-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submit-btn');
+    const successMsg = document.getElementById('success-msg');
+    const text = textarea.value.trim();
+
+    if (!text) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    try {
+        const response = await fetch('/api/claude/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            textarea.value = '';
+            localStorage.removeItem(DRAFT_KEY);  // Clear draft on success
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+                location.reload();
+            }, 1500);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Error submitting request: ' + err.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Request';
+    }
+});
+
+// Auto-refresh every 30 seconds, but only if not typing
+setInterval(() => {
+    if (!isTyping && textarea.value.trim() === '') {
+        location.reload();
+    }
+}, 30000);
+</script>
+{% endblock %}

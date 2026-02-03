@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TechNotes Blog{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --accent: #0d6efd;
+            --border: #dee2e6;
+            --author-a: #0d6efd;
+            --author-b: #495057;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .site-header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+        }
+
+        .header-inner {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .site-logo {
+            font-family: 'Merriweather', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .site-logo span {
+            color: var(--accent);
+        }
+
+        .site-nav {
+            display: flex;
+            gap: 20px;
+        }
+
+        .site-nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .site-nav a:hover,
+        .site-nav a.active {
+            color: var(--accent);
+        }
+
+        /* Main content */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* Page title */
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-title {
+            font-family: 'Merriweather', serif;
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+
+        /* Footer */
+        .site-footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    {% if session.logged_in %}
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="{{ url_for('index') }}" class="site-logo">Tech<span>Notes</span></a>
+            <nav class="site-nav">
+                <a href="{{ url_for('messages') }}" class="{% if request.endpoint == 'messages' %}active{% endif %}">Articles</a>
+                <a href="{{ url_for('status') }}" class="{% if request.endpoint == 'status' %}active{% endif %}">Activity</a>
+                <a href="{{ url_for('media_gallery') }}" class="{% if request.endpoint == 'media_gallery' %}active{% endif %}">Gallery</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </nav>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2025 TechNotes. All rights reserved.</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

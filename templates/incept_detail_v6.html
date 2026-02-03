@@ -1,0 +1,689 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Request #{{ request.id }}{% endblock %}
+
+{% block extra_styles %}
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.back-btn {
+    padding: 6px 12px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.back-btn:hover {
+    background: var(--border);
+}
+
+.page-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.request-status {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.request-status.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.request-status.processing {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.request-status.completed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.request-status.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+[data-theme="dark"] .request-status.pending {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+[data-theme="dark"] .request-status.processing {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+[data-theme="dark"] .request-status.completed {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+[data-theme="dark"] .request-status.error {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+.refresh-time {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: auto;
+}
+
+.refresh-btn {
+    padding: 6px 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.request-detail {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.request-detail h3 {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.request-text {
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.request-meta {
+    display: flex;
+    gap: 24px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.request-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.request-badges {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.request-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--border);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.request-badge.api {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.request-badge.local {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.request-badge.continuation {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+
+.request-badge.interrupted {
+    background: #fed7aa;
+    color: #c2410c;
+}
+
+.request-badge.restart-count {
+    background: #ddd6fe;
+    color: #6d28d9;
+}
+
+[data-theme="dark"] .request-badge.api {
+    background: #1e3a8a;
+    color: #bfdbfe;
+}
+
+[data-theme="dark"] .request-badge.local {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+[data-theme="dark"] .request-badge.continuation {
+    background: #3730a3;
+    color: #c7d2fe;
+}
+
+[data-theme="dark"] .request-badge.interrupted {
+    background: #7c2d12;
+    color: #fed7aa;
+}
+
+[data-theme="dark"] .request-badge.restart-count {
+    background: #5b21b6;
+    color: #ddd6fe;
+}
+
+.logs-section {
+    padding: 16px;
+}
+
+.logs-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.logs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.log-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+}
+
+.log-line.info {
+    border-left: 2px solid var(--accent);
+}
+
+.log-line.success {
+    border-left: 2px solid #10b981;
+}
+
+.log-line.error {
+    border-left: 2px solid #ef4444;
+}
+
+.log-line.warning {
+    border-left: 2px solid #f59e0b;
+}
+
+.log-timestamp {
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.log-type {
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    border-radius: 2px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.log-line.info .log-type {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.log-line.success .log-type {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.log-line.error .log-type {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.log-line.warning .log-type {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+[data-theme="dark"] .log-line.info .log-type {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+[data-theme="dark"] .log-line.success .log-type {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+[data-theme="dark"] .log-line.error .log-type {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+[data-theme="dark"] .log-line.warning .log-type {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+.log-message {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.empty-logs {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.response-section {
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.response-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.response-text {
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    border-left: 3px solid #10b981;
+}
+
+.pending-notice {
+    text-align: center;
+    padding: 24px;
+    background: #fef3c7;
+    border-radius: 6px;
+    color: #92400e;
+}
+
+[data-theme="dark"] .pending-notice {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+.pending-notice h4 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.pending-notice p {
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.action-bar {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.action-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.action-btn:hover {
+    background: var(--border);
+}
+
+.action-btn.cancel {
+    border-color: #f59e0b;
+    color: #b45309;
+}
+
+.action-btn.cancel:hover {
+    background: #fef3c7;
+}
+
+.action-btn.restart {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.action-btn.restart:hover {
+    background: #dbeafe;
+}
+
+.action-btn.delete {
+    border-color: #ef4444;
+    color: #dc2626;
+}
+
+.action-btn.delete:hover {
+    background: #fee2e2;
+}
+
+[data-theme="dark"] .action-btn.cancel:hover {
+    background: #78350f;
+}
+
+[data-theme="dark"] .action-btn.restart:hover {
+    background: #1e3a8a;
+}
+
+[data-theme="dark"] .action-btn.delete:hover {
+    background: #7f1d1d;
+}
+
+.request-status.cancelled {
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
+[data-theme="dark"] .request-status.cancelled {
+    background: #374151;
+    color: #9ca3af;
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('incept_control') }}" class="back-btn">Back</a>
+    <span class="page-title">Request #{{ request.id }}</span>
+    <span class="request-status {{ request.status }}">{{ request.status }}</span>
+    <span class="refresh-time">{{ last_refresh }}</span>
+    <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+</div>
+
+<div class="request-detail card">
+    <h3>Request</h3>
+    <div class="request-text">{{ request.text }}</div>
+    <div class="request-badges">
+        <span class="request-badge {{ request.mode or 'api' }}">{{ (request.mode or 'api')|upper }}</span>
+        <span class="request-badge">{{ (request.model or 'sonnet-4')|replace('claude-', '')|replace('-20250514', '')|replace('-20241022', '') }}</span>
+        {% if request.interrupted %}
+        <span class="request-badge interrupted" title="This request was interrupted by server restart at {{ request.interrupted_at[5:16] if request.interrupted_at else 'unknown time' }}">⚠ Interrupted</span>
+        {% endif %}
+        {% if request.parent_id %}
+        <a href="{{ url_for('incept_detail', req_id=request.parent_id) }}" style="text-decoration: none;">
+            <span class="request-badge continuation">↳ Continued from #{{ request.parent_id }}</span>
+        </a>
+        {% endif %}
+        {% if request.restart_count and request.restart_count > 0 %}
+        <span class="request-badge restart-count" title="This request has been restarted {{ request.restart_count }} time(s)">🔄 Restart #{{ request.restart_count }}</span>
+        {% endif %}
+    </div>
+    <div class="request-meta">
+        <span>Created: {{ request.created_at[5:16] if request.created_at else 'Unknown' }}</span>
+        {% if request.completed_at %}
+        <span>Completed: {{ request.completed_at[5:16] }}</span>
+        {% endif %}
+    </div>
+    <div class="action-bar">
+        {% if request.status in ['pending', 'processing'] %}
+        <button class="action-btn cancel" onclick="cancelRequest({{ request.id }})">Cancel</button>
+        {% endif %}
+        <button class="action-btn restart" onclick="restartRequest({{ request.id }})">Restart</button>
+        <button class="action-btn delete" onclick="deleteRequest({{ request.id }})">Delete</button>
+    </div>
+</div>
+
+{% if request.status == 'pending' %}
+<div class="card" style="padding: 16px;">
+    <div class="pending-notice">
+        <h4><span class="spinner"></span>Waiting for Processor</h4>
+        <p>This request is queued. When the processor picks it up, you'll see the progress here.</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="logs-section card">
+    <h3>Activity Log</h3>
+    <div class="logs-list" id="logs-list">
+        {% if logs %}
+            {% for log in logs %}
+            <div class="log-line {{ log.log_type }}">
+                <span class="log-timestamp">{{ log.timestamp[11:19] if log.timestamp else '' }}</span>
+                <span class="log-type">{{ log.log_type }}</span>
+                <span class="log-message">{{ log.message }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-logs">No activity yet. Logs will appear here as the request is processed.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if request.response %}
+<div class="response-section card">
+    <h3>Response</h3>
+    <div class="response-text">{{ request.response }}</div>
+</div>
+{% endif %}
+
+{% if request.status == 'completed' and request.auto_push == 0 %}
+<div class="card" style="padding: 16px;">
+    <h3 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text-muted);">Git Status</h3>
+    <div id="git-status-content" style="background: var(--bg); padding: 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
+        <div style="color: var(--text-muted); text-align: center; padding: 20px;">Loading git status...</div>
+    </div>
+    <div id="git-actions" style="margin-top: 12px; display: none;">
+        <button class="git-push-btn" onclick="pushChanges()" style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 500;">
+            Push Changes to Git
+        </button>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh every 5 seconds if request is still pending or processing
+{% if request.status in ['pending', 'processing'] %}
+setInterval(() => {
+    location.reload();
+}, 5000);
+{% endif %}
+
+// Load git status if auto_push was disabled
+{% if request.status == 'completed' and request.auto_push == 0 %}
+async function loadGitStatus() {
+    try {
+        const response = await fetch('/api/incept/git/status');
+        const data = await response.json();
+
+        if (data.error) {
+            document.getElementById('git-status-content').innerHTML =
+                `<div style="color: #ef4444;">Error: ${data.error}</div>`;
+            return;
+        }
+
+        const content = document.getElementById('git-status-content');
+        const actions = document.getElementById('git-actions');
+
+        let html = '<div style="margin-bottom: 12px;">';
+        html += `<span style="color: var(--text-muted);">Branch:</span> <span style="font-weight: 600; color: var(--accent);">${data.branch || 'unknown'}</span>`;
+        html += '</div>';
+
+        if (data.has_changes) {
+            html += '<div style="color: var(--text-muted); margin-bottom: 8px;">Unpushed changes:</div>';
+
+            if (data.modified && data.modified.length > 0) {
+                html += '<div style="margin-bottom: 8px;"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">MODIFIED:</div>';
+                data.modified.forEach(file => {
+                    html += `<div style="padding: 4px 8px; background: var(--card-bg); border-radius: 3px; margin-bottom: 2px; border-left: 3px solid #f59e0b;">${file}</div>`;
+                });
+                html += '</div>';
+            }
+
+            if (data.untracked && data.untracked.length > 0) {
+                html += '<div style="margin-bottom: 8px;"><div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">UNTRACKED:</div>';
+                data.untracked.forEach(file => {
+                    html += `<div style="padding: 4px 8px; background: var(--card-bg); border-radius: 3px; margin-bottom: 2px; border-left: 3px solid #6b7280;">${file}</div>`;
+                });
+                html += '</div>';
+            }
+
+            actions.style.display = 'block';
+        } else {
+            html += '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No changes to push</div>';
+            actions.style.display = 'none';
+        }
+
+        content.innerHTML = html;
+    } catch (err) {
+        console.error('Failed to load git status:', err);
+        document.getElementById('git-status-content').innerHTML =
+            `<div style="color: #ef4444;">Failed to load git status: ${err.message}</div>`;
+    }
+}
+
+async function pushChanges() {
+    const btn = event.target;
+    const originalText = btn.textContent;
+
+    const message = prompt('Enter commit message:', 'Incept #{{ request.id }}: {{ request.text[:50] }}');
+    if (!message) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Pushing...';
+
+    try {
+        const response = await fetch('/api/incept/git/push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Changes pushed successfully! Render will redeploy automatically.');
+            await loadGitStatus();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to push'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+// Load git status on page load
+loadGitStatus();
+{% endif %}
+
+// Action functions
+async function cancelRequest(reqId) {
+    if (!confirm('Cancel this request?')) return;
+
+    try {
+        const response = await fetch(`/api/incept/request/${reqId}/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Could not cancel'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function restartRequest(reqId) {
+    if (!confirm('Restart this request with current settings?')) return;
+
+    try {
+        const response = await fetch(`/api/incept/request/${reqId}/restart`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+            window.location.href = '/incept/' + data.new_id;
+        } else {
+            alert('Error: ' + (data.error || 'Could not restart'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function deleteRequest(reqId) {
+    if (!confirm('Delete this request and all its logs? This cannot be undone.')) return;
+
+    try {
+        const response = await fetch(`/api/incept/request/${reqId}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        if (data.success) {
+            window.location.href = '/incept';
+        } else {
+            alert('Error: ' + (data.error || 'Could not delete'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,332 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Lab2{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Override base container to make fullscreen */
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .container {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        height: calc(100vh - 49px); /* Subtract header height */
+    }
+
+    .lab2-container {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .iframe-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .iframe-container iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+    }
+
+    .no-url-message {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--text-muted);
+        text-align: center;
+        padding: 40px;
+        background: var(--bg);
+    }
+
+    .no-url-message .icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+
+    .no-url-message h3 {
+        font-size: 1.2rem;
+        margin-bottom: 12px;
+        color: var(--text);
+    }
+
+    .no-url-message p {
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+
+    .no-url-message code {
+        background: var(--card-bg);
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        display: inline-block;
+        margin-top: 12px;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lab2-container">
+    <div class="iframe-container">
+        {% if embed_url %}
+            <div class="loading-overlay" id="loading">
+                <div class="loading-spinner"></div>
+            </div>
+            <iframe
+                id="embeddedSite"
+                src="{{ embed_url }}"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+                allow="fullscreen"
+                onload="hideLoading()"
+            ></iframe>
+        {% else %}
+            <div class="no-url-message">
+                <div class="icon">🔗</div>
+                <h3>No Website Configured</h3>
+                <p>Set the <code>LAB2_EMBED_URL</code> environment variable to embed a website.</p>
+                <p>The website will automatically login as admin with the configured password.</p>
+                <code>LAB2_EMBED_URL=https://your-website.com</code>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LAB2_SESSION_KEY = 'lab2_session_active';
+const LAB2_CREDS = { username: 'admin', password: '0319z' };
+const RAW_URL = '{{ raw_url|safe }}';
+const AUTH_PARAMS = 'username=admin&password=0319z&auto_login=true';
+
+function hideLoading() {
+    const loading = document.getElementById('loading');
+    if (loading) {
+        loading.style.opacity = '0';
+        setTimeout(() => {
+            loading.style.display = 'none';
+        }, 300);
+    }
+}
+
+// Add auth params to any URL from the same base domain
+function addAuthToUrl(url) {
+    if (!url || !RAW_URL) return url;
+    try {
+        const baseOrigin = new URL(RAW_URL).origin;
+        const targetUrl = new URL(url);
+        // Only add auth if same origin
+        if (targetUrl.origin === baseOrigin) {
+            const separator = targetUrl.search ? '&' : '?';
+            return url + separator + AUTH_PARAMS;
+        }
+    } catch (e) {
+        console.log('[Lab2] Could not parse URL:', url);
+    }
+    return url;
+}
+
+// Check if we're already "logged in" from previous navigation
+function isSessionActive() {
+    const session = localStorage.getItem(LAB2_SESSION_KEY);
+    if (!session) return false;
+    try {
+        const data = JSON.parse(session);
+        // Session valid for 30 minutes
+        const thirtyMinutes = 30 * 60 * 1000;
+        return (Date.now() - data.timestamp) < thirtyMinutes;
+    } catch {
+        return false;
+    }
+}
+
+function markSessionActive() {
+    localStorage.setItem(LAB2_SESSION_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        active: true
+    }));
+}
+
+// Auto-submit login form if it exists in the iframe
+window.addEventListener('load', function() {
+    try {
+        const iframe = document.getElementById('embeddedSite');
+        if (!iframe) return;
+
+        // Track login attempts per page URL to avoid double-submitting same form
+        // but allow re-login if redirected back to login page
+        let lastLoginUrl = null;
+        let loginAttempts = 0;
+        const MAX_LOGIN_ATTEMPTS = 3;
+
+        // Function to attempt login on the current iframe content
+        function attemptLogin() {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const currentUrl = iframeDoc.location.href;
+
+                // Check if we're on a login page by looking for login form elements
+                const usernameFields = iframeDoc.querySelectorAll('input[name*="user"], input[name*="login"], input[type="text"], input[name="username"]');
+                const passwordFields = iframeDoc.querySelectorAll('input[name*="pass"], input[type="password"], input[name="password"]');
+                const submitButtons = iframeDoc.querySelectorAll('button[type="submit"], input[type="submit"]');
+
+                // If login form found and we haven't already attempted on this exact URL
+                if (usernameFields.length > 0 && passwordFields.length > 0 && currentUrl !== lastLoginUrl) {
+                    lastLoginUrl = currentUrl;
+                    loginAttempts++;
+
+                    // If we've tried too many times, redirect iframe to URL with auth params
+                    if (loginAttempts > MAX_LOGIN_ATTEMPTS) {
+                        console.log('[Lab2] Too many login attempts, redirecting with auth params');
+                        const authUrl = addAuthToUrl(currentUrl);
+                        if (authUrl !== currentUrl) {
+                            iframe.src = authUrl;
+                            return;
+                        }
+                    }
+
+                    // Fill in credentials
+                    usernameFields[0].value = LAB2_CREDS.username;
+                    passwordFields[0].value = LAB2_CREDS.password;
+
+                    // Trigger change events (for React/Vue form handling)
+                    ['input', 'change', 'blur'].forEach(eventType => {
+                        usernameFields[0].dispatchEvent(new Event(eventType, { bubbles: true }));
+                        passwordFields[0].dispatchEvent(new Event(eventType, { bubbles: true }));
+                    });
+
+                    // Also set via native setter for React controlled inputs
+                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    nativeInputValueSetter.call(usernameFields[0], LAB2_CREDS.username);
+                    usernameFields[0].dispatchEvent(new Event('input', { bubbles: true }));
+                    nativeInputValueSetter.call(passwordFields[0], LAB2_CREDS.password);
+                    passwordFields[0].dispatchEvent(new Event('input', { bubbles: true }));
+
+                    // Auto-submit after a short delay
+                    setTimeout(() => {
+                        if (submitButtons.length > 0) {
+                            submitButtons[0].click();
+                        } else {
+                            // Try to find and submit the form
+                            const form = usernameFields[0].closest('form');
+                            if (form) {
+                                form.submit();
+                            }
+                        }
+                        // Mark session as active after login
+                        markSessionActive();
+                    }, 500);
+
+                    console.log('[Lab2] Auto-login credentials filled and submitted for:', currentUrl);
+                } else if (usernameFields.length === 0 && passwordFields.length === 0) {
+                    // No login form = we're logged in
+                    markSessionActive();
+                    loginAttempts = 0; // Reset counter on successful login
+                    console.log('[Lab2] Already logged in, session marked active');
+                }
+            } catch (e) {
+                // CORS prevents iframe access - this is expected for external sites
+                // Try to detect login redirect by checking if URL changed without auth params
+                try {
+                    const currentSrc = iframe.src;
+                    if (currentSrc && !currentSrc.includes('auto_login=true')) {
+                        console.log('[Lab2] Detected navigation without auth, adding auth params');
+                        const authUrl = addAuthToUrl(currentSrc);
+                        if (authUrl !== currentSrc) {
+                            iframe.src = authUrl;
+                            return;
+                        }
+                    }
+                } catch (e2) {
+                    // Can't access src either
+                }
+                console.log('[Lab2] Using URL parameters for auto-login (iframe content not accessible due to CORS)');
+                if (isSessionActive()) {
+                    console.log('[Lab2] Previous session still active');
+                }
+            }
+        }
+
+        // Listen for every iframe load event (including subpage navigation)
+        iframe.addEventListener('load', attemptLogin);
+
+        // Also intercept link clicks if possible
+        iframe.addEventListener('load', function() {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                iframeDoc.addEventListener('click', function(e) {
+                    const link = e.target.closest('a');
+                    if (link && link.href) {
+                        const authUrl = addAuthToUrl(link.href);
+                        if (authUrl !== link.href) {
+                            e.preventDefault();
+                            iframe.src = authUrl;
+                        }
+                    }
+                });
+            } catch (e) {
+                // CORS - expected
+            }
+        });
+    } catch (e) {
+        console.error('[Lab2] Error setting up auto-login:', e);
+    }
+});
+
+// Handle iframe errors
+window.addEventListener('error', function(e) {
+    if (e.target.tagName === 'IFRAME') {
+        console.error('[Lab2] Failed to load embedded website');
+    }
+}, true);
+
+// Refresh session timestamp periodically while on page
+setInterval(() => {
+    if (isSessionActive()) {
+        markSessionActive();
+    }
+}, 60000); // Refresh every minute
+</script>
+{% endblock %}

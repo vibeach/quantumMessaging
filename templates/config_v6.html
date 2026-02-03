@@ -1,0 +1,443 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Dynamic Config{% endblock %}
+
+{% block content %}
+<!-- Smart Home Widget (decoy) - click lightbulb or button to toggle modes -->
+<div class="smart-widget card" id="mode-toggle">
+    <div class="widget-header">
+        <span class="widget-icon" onclick="toggleMode()" style="cursor:pointer">💡</span>
+        <span class="widget-title">Living Room Lights</span>
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+        <button class="widget-toggle on" id="mode-btn" onclick="toggleMode()">ON</button>
+    </div>
+</div>
+
+<!-- Real content (hidden when mode is OFF) -->
+<div id="real-content">
+<!-- Top bar with refresh and info -->
+<div class="top-bar card">
+    <div class="refresh-row">
+        <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
+        <span class="refresh-time">{{ last_refresh }}</span>
+        <span class="config-path">Config: {{ config_dir }}</span>
+    </div>
+    <div class="action-row">
+        <button class="action-btn save" onclick="saveAllChanges()">Save All Changes</button>
+        <button class="action-btn reset" onclick="resetToDefaults()">Reset to Defaults</button>
+    </div>
+</div>
+
+<!-- Status message -->
+<div id="status-msg" class="status-msg" style="display:none"></div>
+
+<!-- Prompts Section -->
+<div class="section card">
+    <div class="section-header">
+        <h2>Prompts</h2>
+        <span class="section-info">Hot-reloadable - changes apply immediately without redeploy</span>
+    </div>
+
+    {% for name, prompt in prompts.items() %}
+    <div class="prompt-item" data-name="{{ name }}">
+        <div class="prompt-header">
+            <span class="prompt-name">{{ name }}</span>
+            {% if prompt.updated_at %}
+            <span class="prompt-updated">Updated: {{ prompt.updated_at[:19] }}</span>
+            {% endif %}
+        </div>
+        {% if prompt.description %}
+        <div class="prompt-description">{{ prompt.description }}</div>
+        {% endif %}
+        <textarea class="prompt-content" id="prompt-{{ name }}" rows="12">{{ prompt.content }}</textarea>
+        <div class="prompt-actions">
+            <button class="btn-save" onclick="savePrompt('{{ name }}')">Save</button>
+            <button class="btn-reset" onclick="resetPrompt('{{ name }}')">Reset to Default</button>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Add new prompt -->
+    <div class="add-prompt">
+        <input type="text" id="new-prompt-name" placeholder="New prompt name...">
+        <button class="btn-add" onclick="addPrompt()">Add Prompt</button>
+    </div>
+</div>
+
+<!-- Settings Section -->
+<div class="section card">
+    <div class="section-header">
+        <h2>Settings</h2>
+    </div>
+
+    <div class="settings-grid">
+        <div class="setting-item">
+            <label for="setting-incept_max_iterations">Max Iterations</label>
+            <input type="number" id="setting-incept_max_iterations" value="{{ settings.incept_max_iterations or 50 }}">
+            <span class="setting-help">Maximum iterations for Incept API loop</span>
+        </div>
+        <div class="setting-item">
+            <label for="setting-incept_max_tokens">Max Tokens</label>
+            <input type="number" id="setting-incept_max_tokens" value="{{ settings.incept_max_tokens or 4096 }}">
+            <span class="setting-help">Max tokens per API response</span>
+        </div>
+    </div>
+
+    <div class="settings-actions">
+        <button class="btn-save" onclick="saveSettings()">Save Settings</button>
+    </div>
+</div>
+
+<!-- Raw JSON view (collapsed by default) -->
+<details class="section card">
+    <summary class="section-header clickable">
+        <h2>Raw JSON</h2>
+        <span class="section-info">View/edit raw config files</span>
+    </summary>
+    <div class="json-viewer">
+        <h3>prompts.json</h3>
+        <pre id="raw-prompts">{{ prompts | tojson(indent=2) }}</pre>
+        <h3>settings.json</h3>
+        <pre id="raw-settings">{{ settings | tojson(indent=2) }}</pre>
+    </div>
+</details>
+</div>
+
+<!-- Fake content (shown when mode is OFF) - Home Assistant Tutorials -->
+<div id="fake-content" style="display:none">
+<div class="top-bar card">
+    <div class="refresh-row">
+        <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
+        <span class="refresh-time">{{ last_refresh }}</span>
+    </div>
+</div>
+<div class="tutorial-container card">
+    <h2>Home Assistant Settings</h2>
+    <div class="tutorial-list">
+        <div class="tutorial-item">
+            <h3>Automations Configuration</h3>
+            <p>Configure your home automation rules and triggers for smart devices.</p>
+        </div>
+        <div class="tutorial-item">
+            <h3>Device Integration</h3>
+            <p>Manage connected devices and their settings in your smart home.</p>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar { padding: 8px; margin-bottom: 8px; }
+    .refresh-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 10px; color: var(--text-muted); }
+    .refresh-btn-nice { background: var(--accent); color: white; border: none; width: 26px; height: 26px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+    .refresh-btn-nice:hover { transform: rotate(180deg); background: #1d4ed8; }
+    .refresh-time { flex: 1; }
+    .config-path { font-family: 'JetBrains Mono', monospace; font-size: 9px; opacity: 0.7; }
+
+    .action-row { display: flex; gap: 8px; }
+    .action-btn { padding: 6px 12px; border: none; border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; }
+    .action-btn.save { background: #10b981; color: white; }
+    .action-btn.save:hover { background: #059669; }
+    .action-btn.reset { background: #ef4444; color: white; }
+    .action-btn.reset:hover { background: #dc2626; }
+
+    .status-msg { padding: 10px; margin-bottom: 8px; border-radius: 6px; font-size: 12px; text-align: center; }
+    .status-msg.success { background: #d1fae5; color: #047857; }
+    .status-msg.error { background: #fef2f2; color: #dc2626; }
+    [data-theme="dark"] .status-msg.success { background: #065f46; color: #d1fae5; }
+    [data-theme="dark"] .status-msg.error { background: #7f1d1d; color: #fca5a5; }
+
+    .section { padding: 16px; margin-bottom: 12px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .section-header h2 { font-size: 16px; font-weight: 600; margin: 0; }
+    .section-info { font-size: 10px; color: var(--text-muted); }
+    .section-header.clickable { cursor: pointer; }
+    .section-header.clickable:hover { opacity: 0.8; }
+
+    .prompt-item { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .prompt-item:last-of-type { border-bottom: none; margin-bottom: 12px; }
+    .prompt-header { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+    .prompt-name { font-weight: 600; font-size: 13px; font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+    .prompt-updated { font-size: 10px; color: var(--text-muted); }
+    .prompt-description { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+    .prompt-content {
+        width: 100%;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--text);
+        resize: vertical;
+        line-height: 1.5;
+    }
+    .prompt-content:focus { outline: none; border-color: var(--accent); }
+    .prompt-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+    .btn-save, .btn-reset, .btn-add {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+    .btn-save { background: var(--accent); color: white; }
+    .btn-save:hover { background: #1d4ed8; }
+    .btn-reset { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-reset:hover { background: var(--border); }
+    .btn-add { background: #10b981; color: white; }
+    .btn-add:hover { background: #059669; }
+
+    .add-prompt { display: flex; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--border); }
+    .add-prompt input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 12px;
+        background: var(--bg);
+        color: var(--text);
+    }
+    .add-prompt input:focus { outline: none; border-color: var(--accent); }
+
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .setting-item { display: flex; flex-direction: column; gap: 4px; }
+    .setting-item label { font-size: 12px; font-weight: 500; }
+    .setting-item input {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 12px;
+        background: var(--bg);
+        color: var(--text);
+    }
+    .setting-item input:focus { outline: none; border-color: var(--accent); }
+    .setting-help { font-size: 10px; color: var(--text-muted); }
+    .settings-actions { padding-top: 12px; border-top: 1px solid var(--border); }
+
+    .json-viewer { padding-top: 12px; }
+    .json-viewer h3 { font-size: 12px; font-weight: 600; margin: 12px 0 8px; color: var(--text-muted); }
+    .json-viewer pre {
+        background: var(--bg);
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-family: 'JetBrains Mono', monospace;
+        overflow-x: auto;
+        white-space: pre-wrap;
+    }
+
+    /* Smart Home Widget */
+    .smart-widget { padding: 10px 12px; margin-bottom: 8px; }
+    .widget-header { display: flex; align-items: center; gap: 10px; }
+    .widget-icon { font-size: 18px; }
+    .widget-title { flex: 1; font-weight: 600; font-size: 13px; }
+    .theme-toggle { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .theme-toggle:hover { background: var(--border); }
+    [data-theme="dark"] .theme-toggle { background: #374151; border-color: #4b5563; }
+    .widget-toggle { padding: 4px 12px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; cursor: pointer; }
+    .widget-toggle.on { background: #d1fae5; color: #047857; }
+    .widget-toggle.off { background: #f3f4f6; color: #6b7280; }
+    [data-theme="dark"] .widget-toggle.on { background: #065f46; color: #d1fae5; }
+    [data-theme="dark"] .widget-toggle.off { background: #374151; color: #9ca3af; }
+
+    /* Tutorial styles for fake content */
+    .tutorial-container { padding: 16px; }
+    .tutorial-container h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+    .tutorial-list { display: flex; flex-direction: column; gap: 12px; }
+    .tutorial-item { padding: 12px; background: var(--bg); border-radius: 6px; }
+    .tutorial-item h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+    .tutorial-item p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Mode toggle (decoy feature)
+    const MODE_KEY = 'mode';
+    let isOn = localStorage.getItem(MODE_KEY) !== 'off';
+
+    function updateMode() {
+        const btn = document.getElementById('mode-btn');
+        const realContent = document.getElementById('real-content');
+        const fakeContent = document.getElementById('fake-content');
+        if (isOn) {
+            btn.classList.remove('off');
+            btn.classList.add('on');
+            btn.textContent = 'ON';
+            realContent.style.display = 'block';
+            fakeContent.style.display = 'none';
+        } else {
+            btn.classList.remove('on');
+            btn.classList.add('off');
+            btn.textContent = 'OFF';
+            realContent.style.display = 'none';
+            fakeContent.style.display = 'block';
+        }
+    }
+
+    function toggleMode() {
+        isOn = !isOn;
+        localStorage.setItem(MODE_KEY, isOn ? 'on' : 'off');
+        updateMode();
+    }
+
+    updateMode();
+
+    // Dark mode toggle
+    const THEME_KEY = 'theme';
+    let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
+
+    function applyTheme(theme) {
+        if (theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            const btn = document.getElementById('theme-btn');
+            if (btn) btn.textContent = '☀️';
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            const btn = document.getElementById('theme-btn');
+            if (btn) btn.textContent = '🌙';
+        }
+    }
+
+    function toggleTheme() {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(THEME_KEY, currentTheme);
+        applyTheme(currentTheme);
+    }
+
+    applyTheme(currentTheme);
+
+    // Status message helper
+    function showStatus(message, isError = false) {
+        const el = document.getElementById('status-msg');
+        el.textContent = message;
+        el.className = 'status-msg ' + (isError ? 'error' : 'success');
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+
+    // Save a single prompt
+    async function savePrompt(name) {
+        const content = document.getElementById('prompt-' + name).value;
+        try {
+            const resp = await fetch('/api/config/prompts/' + name, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({content: content})
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showStatus('Prompt "' + name + '" saved successfully!');
+            } else {
+                showStatus('Failed to save: ' + (data.error || 'Unknown error'), true);
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, true);
+        }
+    }
+
+    // Reset a prompt to default
+    async function resetPrompt(name) {
+        if (!confirm('Reset "' + name + '" to default value?')) return;
+        try {
+            const resp = await fetch('/api/config/prompts/' + name, {
+                method: 'DELETE'
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showStatus('Prompt "' + name + '" reset to default');
+                location.reload();
+            } else {
+                showStatus('Failed to reset', true);
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, true);
+        }
+    }
+
+    // Add a new prompt
+    async function addPrompt() {
+        const name = document.getElementById('new-prompt-name').value.trim();
+        if (!name) {
+            showStatus('Please enter a prompt name', true);
+            return;
+        }
+        try {
+            const resp = await fetch('/api/config/prompts/' + name, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({content: 'Enter your prompt here...', description: 'Custom prompt'})
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showStatus('Prompt "' + name + '" created');
+                location.reload();
+            } else {
+                showStatus('Failed to create: ' + (data.error || 'Unknown error'), true);
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, true);
+        }
+    }
+
+    // Save settings
+    async function saveSettings() {
+        const settings = {
+            incept_max_iterations: parseInt(document.getElementById('setting-incept_max_iterations').value) || 50,
+            incept_max_tokens: parseInt(document.getElementById('setting-incept_max_tokens').value) || 4096
+        };
+        try {
+            const resp = await fetch('/api/config/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(settings)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showStatus('Settings saved successfully!');
+            } else {
+                showStatus('Failed to save settings', true);
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, true);
+        }
+    }
+
+    // Save all changes
+    async function saveAllChanges() {
+        // Save all prompts
+        const promptItems = document.querySelectorAll('.prompt-item');
+        for (const item of promptItems) {
+            const name = item.dataset.name;
+            await savePrompt(name);
+        }
+        // Save settings
+        await saveSettings();
+        showStatus('All changes saved!');
+    }
+
+    // Reset to defaults
+    async function resetToDefaults() {
+        if (!confirm('Reset ALL config to defaults? This cannot be undone.')) return;
+        try {
+            const resp = await fetch('/api/config/reset', {
+                method: 'POST'
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showStatus('All config reset to defaults');
+                location.reload();
+            } else {
+                showStatus('Failed to reset', true);
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, true);
+        }
+    }
+</script>
+{% endblock %}

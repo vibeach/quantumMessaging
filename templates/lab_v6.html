@@ -1,0 +1,1126 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Lab{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* ===== Layout ===== */
+    .top-bar {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-title {
+        font-weight: 700;
+        font-size: 1.2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .date-range-selector {
+        display: flex;
+        gap: 4px;
+        background: var(--bg);
+        padding: 3px;
+        border-radius: 8px;
+    }
+
+    .range-btn {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .range-btn:hover {
+        color: var(--accent);
+    }
+
+    .range-btn.active {
+        background: var(--accent);
+        color: white;
+    }
+
+    .refresh-time {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+    }
+
+    .refresh-btn {
+        padding: 6px 14px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .refresh-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    /* ===== Status Badge ===== */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-badge.connected {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+
+    .status-badge.offline, .status-badge.error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+
+    .status-badge.not_configured {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* ===== Sections ===== */
+    .section {
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .section h3 {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 0;
+    }
+
+    /* ===== Config Notice ===== */
+    .config-notice {
+        padding: 40px;
+        text-align: center;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    }
+
+    .config-notice h3 {
+        color: var(--text);
+        font-size: 1.2rem;
+        margin-bottom: 12px;
+        text-transform: none;
+        letter-spacing: normal;
+    }
+
+    .config-notice p {
+        color: var(--text-muted);
+        margin-bottom: 20px;
+    }
+
+    .config-notice code {
+        display: block;
+        background: var(--card-bg);
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        margin: 8px auto;
+        max-width: 500px;
+        text-align: left;
+        border: 1px solid var(--border);
+    }
+
+    /* ===== Stats Grid ===== */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .stat-card {
+        background: var(--bg);
+        border-radius: 12px;
+        padding: 20px 16px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+    }
+
+    .stat-card.mood::before { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+    .stat-card.health::before { background: linear-gradient(90deg, #10b981, #059669); }
+    .stat-card.social::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+    .stat-card.intimate::before { background: linear-gradient(90deg, #ec4899, #db2777); }
+    .stat-card.extra::before { background: linear-gradient(90deg, #8b5cf6, #7c3aed); }
+
+    .stat-card .icon {
+        font-size: 2rem;
+        margin-bottom: 8px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    }
+
+    .stat-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1;
+    }
+
+    .stat-card .label {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 6px;
+    }
+
+    .stat-card .trend {
+        font-size: 0.75rem;
+        margin-top: 4px;
+    }
+
+    .stat-card .trend.up { color: #10b981; }
+    .stat-card .trend.down { color: #ef4444; }
+
+    /* ===== Charts ===== */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    @media (max-width: 768px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .chart-container {
+        background: var(--bg);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .chart-container.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .chart-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .chart-title .icon {
+        font-size: 1rem;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 200px;
+    }
+
+    .chart-wrapper.tall {
+        height: 280px;
+    }
+
+    /* ===== Timeline ===== */
+    .timeline-container {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .timeline-item {
+        display: flex;
+        gap: 12px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.2s;
+    }
+
+    .timeline-item:hover {
+        background: var(--bg);
+        margin: 0 -20px;
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .timeline-item:last-child {
+        border-bottom: none;
+    }
+
+    .timeline-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+
+    .timeline-icon.mood { background: linear-gradient(135deg, #fef3c7, #fde68a); }
+    .timeline-icon.health { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+    .timeline-icon.social { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
+    .timeline-icon.intimate { background: linear-gradient(135deg, #fce7f3, #fbcfe8); }
+    .timeline-icon.extra { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+
+    .timeline-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 4px;
+    }
+
+    .timeline-type {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+
+    .timeline-type.mood { background: #fef3c7; color: #92400e; }
+    .timeline-type.health { background: #d1fae5; color: #065f46; }
+    .timeline-type.social { background: #dbeafe; color: #1e40af; }
+    .timeline-type.intimate { background: #fce7f3; color: #9d174d; }
+    .timeline-type.extra { background: #ede9fe; color: #5b21b6; }
+
+    .timeline-time {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .timeline-primary {
+        font-weight: 500;
+        color: var(--text);
+        margin-bottom: 2px;
+    }
+
+    .timeline-secondary {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    /* ===== Entry Tabs ===== */
+    .entry-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .entry-tab {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: 2px solid transparent;
+        background: var(--bg);
+        color: var(--text-muted);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .entry-tab:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .entry-tab.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: transparent;
+    }
+
+    .entry-tab .count {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.2);
+    }
+
+    .entry-tab:not(.active) .count {
+        background: var(--border);
+    }
+
+    /* ===== Entries List ===== */
+    .entries-panel {
+        display: none;
+    }
+
+    .entries-panel.active {
+        display: block;
+    }
+
+    .entry-card {
+        display: flex;
+        gap: 16px;
+        padding: 16px;
+        background: var(--bg);
+        border-radius: 12px;
+        margin-bottom: 12px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .entry-card:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .entry-card .icon {
+        font-size: 2rem;
+        width: 50px;
+        text-align: center;
+    }
+
+    .entry-card .content {
+        flex: 1;
+    }
+
+    .entry-card .primary {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 4px;
+    }
+
+    .entry-card .secondary {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .entry-card .time {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-align: right;
+    }
+
+    /* ===== Empty State ===== */
+    .empty-state {
+        padding: 40px;
+        text-align: center;
+        color: var(--text-muted);
+    }
+
+    .empty-state .icon {
+        font-size: 3rem;
+        margin-bottom: 12px;
+        opacity: 0.5;
+    }
+
+    /* ===== Category Stats ===== */
+    .category-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 16px;
+        background: var(--bg);
+        border-radius: 12px;
+    }
+
+    .category-stat {
+        text-align: center;
+    }
+
+    .category-stat .value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text);
+    }
+
+    .category-stat .label {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+    }
+
+    /* ===== Scrollbar ===== */
+    .timeline-container::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .timeline-container::-webkit-scrollbar-track {
+        background: var(--bg);
+        border-radius: 3px;
+    }
+
+    .timeline-container::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+    }
+
+    .timeline-container::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
+    }
+
+    /* ===== Loading ===== */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+
+    .loading-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Top bar -->
+<div class="top-bar card">
+    <div class="page-header">
+        <span class="page-title">Control Room Lab</span>
+        <span class="status-badge {{ connection_status.status }}">
+            <span class="status-dot"></span>
+            {{ connection_status.status | replace('_', ' ') | title }}
+        </span>
+    </div>
+    <div class="header-controls">
+        <div class="date-range-selector">
+            <a href="?days=7" class="range-btn {% if selected_days == 7 %}active{% endif %}">7d</a>
+            <a href="?days=14" class="range-btn {% if selected_days == 14 %}active{% endif %}">14d</a>
+            <a href="?days=30" class="range-btn {% if selected_days == 30 %}active{% endif %}">30d</a>
+            <a href="?days=90" class="range-btn {% if selected_days == 90 %}active{% endif %}">90d</a>
+        </div>
+        <span class="refresh-time">{{ last_refresh }}</span>
+        <a href="" onclick="location.reload();return false;" class="refresh-btn">Refresh</a>
+    </div>
+</div>
+
+{% if connection_status.status == 'not_configured' %}
+<!-- Configuration notice -->
+<div class="section card config-notice">
+    <h3>Control Room Not Configured</h3>
+    <p>Set the following environment variables to connect:</p>
+    <code>CONTROL_ROOM_API_KEY=your_api_key</code>
+    <code>CONTROL_ROOM_BASE_URL=https://your-control-room.onrender.com</code>
+    <code>CONTROL_ROOM_WEBHOOK_SECRET=your_webhook_secret</code>
+</div>
+
+{% elif connection_status.status != 'connected' %}
+<!-- Connection error -->
+<div class="section card config-notice">
+    <h3>Connection Error</h3>
+    <p>{{ connection_status.message or 'Cannot connect to Control Room' }}</p>
+    <code>Base URL: {{ connection_status.base_url or 'Not set' }}</code>
+</div>
+
+{% else %}
+<!-- Connected - show dashboard -->
+
+<!-- Stats Overview -->
+<div class="section card">
+    <div class="section-header">
+        <h3>Overview</h3>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card mood" onclick="showTab('mood')">
+            <div class="icon">{{ lab_data.entries.mood[0].icon if lab_data.entries.mood else '😊' }}</div>
+            <div class="value">{{ lab_data.totals.mood or 0 }}</div>
+            <div class="label">Mood</div>
+        </div>
+        <div class="stat-card health" onclick="showTab('health')">
+            <div class="icon">💪</div>
+            <div class="value">{{ lab_data.totals.health or 0 }}</div>
+            <div class="label">Health</div>
+        </div>
+        <div class="stat-card social" onclick="showTab('social')">
+            <div class="icon">👥</div>
+            <div class="value">{{ lab_data.totals.social or 0 }}</div>
+            <div class="label">Social</div>
+        </div>
+        <div class="stat-card intimate" onclick="showTab('intimate')">
+            <div class="icon">💕</div>
+            <div class="value">{{ lab_data.totals.intimate or 0 }}</div>
+            <div class="label">Intimate</div>
+        </div>
+        <div class="stat-card extra" onclick="showTab('extra')">
+            <div class="icon">🎉</div>
+            <div class="value">{{ lab_data.totals.extra or 0 }}</div>
+            <div class="label">Events</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="section card">
+    <div class="section-header">
+        <h3>Trends</h3>
+    </div>
+    <div class="charts-grid">
+        <div class="chart-container full-width">
+            <div class="chart-title"><span class="icon">⚡</span> Energy Level</div>
+            <div class="chart-wrapper tall">
+                <canvas id="energyChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-title"><span class="icon">📊</span> Activity Distribution</div>
+            <div class="chart-wrapper">
+                <canvas id="activityChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-title"><span class="icon">📈</span> Daily Entries</div>
+            <div class="chart-wrapper">
+                <canvas id="dailyChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline -->
+<div class="section card">
+    <div class="section-header">
+        <h3>Timeline</h3>
+    </div>
+    <div class="timeline-container">
+        {% if lab_data.timeline %}
+            {% for item in lab_data.timeline %}
+            <div class="timeline-item">
+                <div class="timeline-icon {{ item.type }}">{{ item.icon }}</div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-type {{ item.type }}">{{ item.type }}</span>
+                        <span class="timeline-time">{{ item.timestamp[:16] if item.timestamp else '' }}</span>
+                    </div>
+                    <div class="timeline-primary">{{ item.primary }}</div>
+                    {% if item.secondary %}
+                    <div class="timeline-secondary">{{ item.secondary }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">📭</div>
+                <p>No entries yet</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Full History by Category -->
+<div class="section card">
+    <div class="section-header">
+        <h3>History</h3>
+    </div>
+
+    <div class="entry-tabs">
+        <button class="entry-tab active" data-tab="mood" onclick="showTab('mood')">
+            <span>😊</span> Mood
+            <span class="count">{{ lab_data.entries.mood|length }}</span>
+        </button>
+        <button class="entry-tab" data-tab="health" onclick="showTab('health')">
+            <span>💪</span> Health
+            <span class="count">{{ lab_data.entries.health|length }}</span>
+        </button>
+        <button class="entry-tab" data-tab="social" onclick="showTab('social')">
+            <span>👥</span> Social
+            <span class="count">{{ lab_data.entries.social|length }}</span>
+        </button>
+        <button class="entry-tab" data-tab="intimate" onclick="showTab('intimate')">
+            <span>💕</span> Intimate
+            <span class="count">{{ lab_data.entries.intimate|length }}</span>
+        </button>
+        <button class="entry-tab" data-tab="extra" onclick="showTab('extra')">
+            <span>🎉</span> Events
+            <span class="count">{{ lab_data.entries.extra|length }}</span>
+        </button>
+    </div>
+
+    <!-- Mood Panel -->
+    <div class="entries-panel active" data-panel="mood">
+        <div class="category-stats" id="mood-stats"></div>
+        {% if lab_data.entries.mood %}
+            {% for entry in lab_data.entries.mood %}
+            <div class="entry-card">
+                <div class="icon">{{ entry.icon }}</div>
+                <div class="content">
+                    <div class="primary">{{ entry.primary }}</div>
+                    <div class="secondary">{{ entry.secondary }}</div>
+                </div>
+                <div class="time">{{ entry.timestamp[:16] if entry.timestamp else '' }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">😊</div>
+                <p>No mood entries</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Health Panel -->
+    <div class="entries-panel" data-panel="health">
+        <div class="category-stats" id="health-stats"></div>
+        {% if lab_data.entries.health %}
+            {% for entry in lab_data.entries.health %}
+            <div class="entry-card">
+                <div class="icon">{{ entry.icon }}</div>
+                <div class="content">
+                    <div class="primary">{{ entry.primary }}</div>
+                    <div class="secondary">{{ entry.secondary }}</div>
+                </div>
+                <div class="time">{{ entry.timestamp[:16] if entry.timestamp else '' }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">💪</div>
+                <p>No health entries</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Social Panel -->
+    <div class="entries-panel" data-panel="social">
+        <div class="category-stats" id="social-stats"></div>
+        {% if lab_data.entries.social %}
+            {% for entry in lab_data.entries.social %}
+            <div class="entry-card">
+                <div class="icon">{{ entry.icon }}</div>
+                <div class="content">
+                    <div class="primary">{{ entry.primary }}</div>
+                    <div class="secondary">{{ entry.secondary }}</div>
+                </div>
+                <div class="time">{{ entry.timestamp[:16] if entry.timestamp else '' }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">👥</div>
+                <p>No social entries</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Intimate Panel -->
+    <div class="entries-panel" data-panel="intimate">
+        <div class="category-stats" id="intimate-stats"></div>
+        {% if lab_data.entries.intimate %}
+            {% for entry in lab_data.entries.intimate %}
+            <div class="entry-card">
+                <div class="icon">{{ entry.icon }}</div>
+                <div class="content">
+                    <div class="primary">{{ entry.primary }}</div>
+                    <div class="secondary">{{ entry.secondary }}</div>
+                </div>
+                <div class="time">{{ entry.timestamp[:16] if entry.timestamp else '' }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">💕</div>
+                <p>No intimate entries</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Extra Panel -->
+    <div class="entries-panel" data-panel="extra">
+        <div class="category-stats" id="extra-stats"></div>
+        {% if lab_data.entries.extra %}
+            {% for entry in lab_data.entries.extra %}
+            <div class="entry-card">
+                <div class="icon">{{ entry.icon }}</div>
+                <div class="content">
+                    <div class="primary">{{ entry.primary }}</div>
+                    <div class="secondary">{{ entry.secondary }}</div>
+                </div>
+                <div class="time">{{ entry.timestamp[:16] if entry.timestamp else '' }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">🎉</div>
+                <p>No event entries</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
+
+<div class="loading-overlay" id="loading">
+    <div class="loading-spinner"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+// Chart data from server
+const chartData = {{ lab_data.chart_data | default({}) | tojson }};
+const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+// Color palette
+const colors = {
+    mood: { bg: 'rgba(251, 191, 36, 0.2)', border: '#f59e0b' },
+    health: { bg: 'rgba(16, 185, 129, 0.2)', border: '#10b981' },
+    social: { bg: 'rgba(59, 130, 246, 0.2)', border: '#3b82f6' },
+    intimate: { bg: 'rgba(236, 72, 153, 0.2)', border: '#ec4899' },
+    extra: { bg: 'rgba(139, 92, 246, 0.2)', border: '#8b5cf6' },
+    energy: { bg: 'rgba(102, 126, 234, 0.3)', border: '#667eea' }
+};
+
+// Chart defaults
+Chart.defaults.font.family = 'Inter, sans-serif';
+Chart.defaults.color = isDark ? '#a0a0a0' : '#666666';
+
+// Initialize charts
+if (chartData.labels) {
+    // Format labels to show only day
+    const shortLabels = chartData.labels.map(d => {
+        const date = new Date(d);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+
+    // Energy Chart
+    const energyCtx = document.getElementById('energyChart');
+    if (energyCtx) {
+        new Chart(energyCtx, {
+            type: 'line',
+            data: {
+                labels: shortLabels,
+                datasets: [{
+                    label: 'Energy',
+                    data: chartData.energy,
+                    backgroundColor: colors.energy.bg,
+                    borderColor: colors.energy.border,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    spanGaps: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 5,
+                        grid: { color: isDark ? '#333' : '#eee' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // Activity Distribution Chart (Doughnut)
+    const activityCtx = document.getElementById('activityChart');
+    if (activityCtx) {
+        const totals = {{ lab_data.totals | default({}) | tojson }};
+        new Chart(activityCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Mood', 'Health', 'Social', 'Intimate', 'Events'],
+                datasets: [{
+                    data: [
+                        totals.mood || 0,
+                        totals.health || 0,
+                        totals.social || 0,
+                        totals.intimate || 0,
+                        totals.extra || 0
+                    ],
+                    backgroundColor: [
+                        colors.mood.border,
+                        colors.health.border,
+                        colors.social.border,
+                        colors.intimate.border,
+                        colors.extra.border
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 8,
+                            font: { size: 11 }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Daily Entries Chart (Stacked Bar)
+    const dailyCtx = document.getElementById('dailyChart');
+    if (dailyCtx) {
+        new Chart(dailyCtx, {
+            type: 'bar',
+            data: {
+                labels: shortLabels.slice(-14), // Last 14 days
+                datasets: [
+                    {
+                        label: 'Health',
+                        data: chartData.health_count.slice(-14),
+                        backgroundColor: colors.health.border,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Social',
+                        data: chartData.social_people.slice(-14),
+                        backgroundColor: colors.social.border,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Events',
+                        data: chartData.extra_count.slice(-14),
+                        backgroundColor: colors.extra.border,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 8,
+                            font: { size: 11 }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false }
+                    },
+                    y: {
+                        stacked: true,
+                        grid: { color: isDark ? '#333' : '#eee' }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Tab switching
+function showTab(tabName) {
+    // Update tabs
+    document.querySelectorAll('.entry-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+
+    // Update panels
+    document.querySelectorAll('.entries-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.dataset.panel === tabName);
+    });
+
+    // Load category stats
+    loadCategoryStats(tabName);
+}
+
+// Load category statistics
+async function loadCategoryStats(category) {
+    const statsContainer = document.getElementById(category + '-stats');
+    if (!statsContainer || statsContainer.dataset.loaded) return;
+
+    try {
+        const response = await fetch(`/api/lab/category/${category}/stats?days={{ selected_days }}`);
+        const stats = await response.json();
+
+        if (stats.error) {
+            statsContainer.innerHTML = '<p style="color: var(--text-muted);">Could not load stats</p>';
+            return;
+        }
+
+        let html = '';
+
+        if (category === 'mood') {
+            html = `
+                <div class="category-stat"><div class="value">${stats.avg_energy || '-'}</div><div class="label">Avg Energy</div></div>
+                <div class="category-stat"><div class="value">${stats.avg_anxiety || '-'}</div><div class="label">Avg Anxiety</div></div>
+                <div class="category-stat"><div class="value">${stats.avg_stress || '-'}</div><div class="label">Avg Stress</div></div>
+                <div class="category-stat"><div class="value">${stats.total_entries || 0}</div><div class="label">Entries</div></div>
+            `;
+        } else if (category === 'health') {
+            html = `
+                <div class="category-stat"><div class="value">${stats.avg_water || '-'}L</div><div class="label">Avg Water</div></div>
+                <div class="category-stat"><div class="value">${stats.avg_sleep || '-'}h</div><div class="label">Avg Sleep</div></div>
+                <div class="category-stat"><div class="value">${stats.total_entries || 0}</div><div class="label">Entries</div></div>
+            `;
+        } else if (category === 'social') {
+            html = `
+                <div class="category-stat"><div class="value">${stats.total_people || 0}</div><div class="label">Total People</div></div>
+                <div class="category-stat"><div class="value">${stats.total_quality_hours || 0}h</div><div class="label">Quality Time</div></div>
+                <div class="category-stat"><div class="value">${stats.avg_people_per_entry || '-'}</div><div class="label">Avg/Entry</div></div>
+                <div class="category-stat"><div class="value">${stats.total_entries || 0}</div><div class="label">Entries</div></div>
+            `;
+        } else if (category === 'intimate') {
+            html = `
+                <div class="category-stat"><div class="value">${stats.avg_intensity || '-'}/5</div><div class="label">Avg Intensity</div></div>
+                <div class="category-stat"><div class="value">${stats.avg_duration || '-'}m</div><div class="label">Avg Duration</div></div>
+                <div class="category-stat"><div class="value">${stats.total_entries || 0}</div><div class="label">Entries</div></div>
+            `;
+        } else if (category === 'extra') {
+            html = `
+                <div class="category-stat"><div class="value">${stats.avg_vibe || '-'}/5</div><div class="label">Avg Vibe</div></div>
+                <div class="category-stat"><div class="value">${stats.total_party_hours || 0}h</div><div class="label">Total Hours</div></div>
+                <div class="category-stat"><div class="value">${stats.total_entries || 0}</div><div class="label">Events</div></div>
+            `;
+        }
+
+        statsContainer.innerHTML = html;
+        statsContainer.dataset.loaded = 'true';
+    } catch (e) {
+        console.error('Failed to load stats:', e);
+    }
+}
+
+// Load initial stats for mood
+loadCategoryStats('mood');
+
+// Auto-refresh every 2 minutes
+setInterval(() => {
+    fetch('/api/lab/status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'connected') {
+                console.log('Lab connection OK');
+            }
+        })
+        .catch(() => {});
+}, 120000);
+</script>
+{% endblock %}

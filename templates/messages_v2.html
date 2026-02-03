@@ -1,0 +1,105 @@
+{% extends "base_v2.html" %}
+
+{% block title %}Messages - Telegram Monitor{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card total">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total</div>
+    </div>
+    <div class="stat-card active">
+        <div class="stat-value">{{ stats.active }}</div>
+        <div class="stat-label">Active</div>
+    </div>
+    <div class="stat-card deleted">
+        <div class="stat-value">{{ stats.deleted }}</div>
+        <div class="stat-label">Deleted</div>
+    </div>
+</div>
+
+<!-- Messages -->
+<div class="card-custom">
+    <div class="card-header-custom">
+        <h2 class="card-title">
+            <i class="bi bi-chat-text"></i>
+            Messages
+        </h2>
+        <button class="btn-refresh" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i>
+            Refresh
+        </button>
+    </div>
+
+    <div class="message-list">
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="message-item {% if msg.deleted %}deleted{% endif %}">
+                <div class="message-header">
+                    <div class="sender-info">
+                        <span class="sender-name">{{ msg.sender_name }}</span>
+                        {% if msg.deleted %}
+                        <span class="deleted-badge">Deleted</span>
+                        {% endif %}
+                        {% if msg.media_type %}
+                        <span class="media-badge">
+                            <i class="bi bi-{% if msg.media_type == 'photo' %}image{% elif msg.media_type == 'video' %}play-circle{% elif msg.media_type == 'audio' %}mic{% elif msg.media_type == 'sticker' %}emoji-smile{% else %}file-earmark{% endif %}"></i>
+                            {{ msg.media_type }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span class="message-time">{{ msg.timestamp }}</span>
+                </div>
+                <div class="message-text">{{ msg.text }}</div>
+                {% if msg.deleted and msg.deleted_at %}
+                <div class="deleted-info">
+                    <i class="bi bi-trash3"></i>
+                    Deleted at {{ msg.deleted_at }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <p>No messages yet.<br>Start the monitor to capture messages.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination-custom">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}" class="page-btn">
+        <i class="bi bi-chevron-left"></i>
+        Newer
+    </a>
+    {% else %}
+    <div></div>
+    {% endif %}
+
+    {% if has_more %}
+    <a href="?page={{ page + 1 }}" class="page-btn">
+        Older
+        <i class="bi bi-chevron-right"></i>
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh every 30 seconds
+    let countdown = 30;
+    const indicator = document.querySelector('.refresh-indicator');
+
+    setInterval(() => {
+        countdown--;
+        if (countdown <= 0) {
+            location.reload();
+        }
+    }, 1000);
+</script>
+{% endblock %}

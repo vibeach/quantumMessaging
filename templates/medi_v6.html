@@ -1,0 +1,1703 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Medi{% endblock %}
+
+{% block content %}
+<!-- Smart Home Widget (decoy) - click lightbulb or button to toggle modes -->
+<div class="smart-widget card" id="mode-toggle">
+    <div class="widget-header">
+        <span class="widget-icon" onclick="toggleMode()" style="cursor:pointer">💡</span>
+        <span class="widget-title">Media Gallery</span>
+        <button class="widget-toggle on" id="mode-btn" onclick="toggleMode()">ON</button>
+    </div>
+</div>
+
+<!-- Real content (hidden when mode is OFF) -->
+<div id="real-content">
+<div style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <!-- Snapshot Count Selector -->
+            <div class="snap-selector">
+                <span class="snap-label">Snaps:</span>
+                <a href="?snaps=3{% if filter_type %}&type={{ filter_type }}{% endif %}" class="snap-btn {% if snapshot_count == 3 %}active{% endif %}">3</a>
+                <a href="?snaps=6{% if filter_type %}&type={{ filter_type }}{% endif %}" class="snap-btn {% if snapshot_count == 6 %}active{% endif %}">6</a>
+                <a href="?snaps=9{% if filter_type %}&type={{ filter_type }}{% endif %}" class="snap-btn {% if snapshot_count == 9 %}active{% endif %}">9</a>
+                <a href="?snaps=12{% if filter_type %}&type={{ filter_type }}{% endif %}" class="snap-btn {% if snapshot_count == 12 %}active{% endif %}">12</a>
+                <a href="?snaps=20{% if filter_type %}&type={{ filter_type }}{% endif %}" class="snap-btn {% if snapshot_count == 20 %}active{% endif %}">20</a>
+                <a href="?snaps=30{% if filter_type %}&type={{ filter_type }}{% endif %}" class="snap-btn {% if snapshot_count == 30 %}active{% endif %}">30</a>
+                <a href="?snaps=40{% if filter_type %}&type={{ filter_type }}{% endif %}" class="snap-btn {% if snapshot_count == 40 %}active{% endif %}">40</a>
+            </div>
+            {% if pending_snapshots > 0 %}
+            <button class="process-btn" onclick="processSnapshots()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg>
+                Process {{ pending_snapshots }}
+            </button>
+            {% endif %}
+        </div>
+        <div style="display: flex; gap: 8px; font-size: 0.85rem; flex-wrap: wrap;">
+            <a href="?snaps={{ snapshot_count }}" class="filter-btn {% if not filter_type %}active{% endif %}">All</a>
+            <a href="?type=video&snaps={{ snapshot_count }}" class="filter-btn {% if filter_type == 'video' %}active{% endif %}">Videos</a>
+            <a href="?type=video_note&snaps={{ snapshot_count }}" class="filter-btn {% if filter_type == 'video_note' %}active{% endif %}">Circles</a>
+            <a href="?type=photo&snaps={{ snapshot_count }}" class="filter-btn {% if filter_type == 'photo' %}active{% endif %}">Photos</a>
+            <a href="?type=audio&snaps={{ snapshot_count }}" class="filter-btn {% if filter_type == 'audio' %}active{% endif %}">Audio</a>
+        </div>
+    </div>
+    {% if stats %}
+    <div style="font-size: 0.8rem; color: var(--text-muted);">
+        {% set total = (stats.get('video', 0) + stats.get('video_note', 0) + stats.get('circle', 0) + stats.get('photo', 0) + stats.get('audio', 0) + stats.get('voice', 0)) %}
+        {{ total }} items
+        {% if stats.get('video') %} &bull; {{ stats['video'] }} videos{% endif %}
+        {% if stats.get('video_note') or stats.get('circle') %} &bull; {{ stats.get('video_note', 0) + stats.get('circle', 0) }} circles{% endif %}
+        {% if stats.get('photo') %} &bull; {{ stats['photo'] }} photos{% endif %}
+        {% if stats.get('audio') or stats.get('voice') %} &bull; {{ stats.get('audio', 0) + stats.get('voice', 0) }} audio{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="video-list">
+    {% for item in media %}
+    <div class="video-row card" data-path="{{ item.media_path }}" data-message-id="{{ item.message_id }}" data-chat-id="{{ item.chat_id }}" data-media-type="{{ item.media_type }}">
+        <!-- Snapshots/Media Row -->
+        {% if item.media_type == 'photo' %}
+        <div class="photo-strip">
+            <div class="photo-preview-cell">
+                <img src="/media/{{ item.media_path }}" alt="Photo" loading="lazy" onerror="this.style.display='none';">
+            </div>
+            <button class="view-btn" onclick="event.stopPropagation(); openMedia('{{ item.media_path }}', '{{ item.sender_name }}', '{{ item.timestamp[:16] if item.timestamp else '' }}', 'photo');">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                View
+            </button>
+        </div>
+        {% elif item.media_type == 'audio' or item.media_type == 'voice' %}
+        <div class="audio-row">
+            <div class="audio-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/></svg>
+            </div>
+            <div class="audio-controls">
+                <audio controls>
+                    <source src="/media/{{ item.media_path }}" type="audio/mpeg">
+                </audio>
+            </div>
+        </div>
+        {% else %}
+        <div class="snapshots-strip" data-snapshot-count="{{ snapshot_count }}" data-message-id="{{ item.message_id }}">
+            {% if item.media_snapshots == 'processing' %}
+                <!-- Processing state -->
+                <div class="processing-overlay">
+                    <div class="processing-content">
+                        <div class="processing-spinner"></div>
+                        <span>Generating snapshots...</span>
+                    </div>
+                    <div class="processing-bar">
+                        <div class="processing-bar-fill"></div>
+                    </div>
+                </div>
+            {% elif item.media_snapshots %}
+                {% set snapshot_paths = item.media_snapshots.split(',') %}
+                {% set total_snapshots = snapshot_paths|length %}
+                {# Display n equally-spaced snapshots from the available snapshots #}
+                {% for i in range(snapshot_count) %}
+                    {# Calculate which snapshot to show: distribute snapshot_count evenly across total_snapshots #}
+                    {% set snapshot_index = ((i * (total_snapshots - 1)) // (snapshot_count - 1)) if snapshot_count > 1 else 0 %}
+                    {% if snapshot_index < total_snapshots %}
+                    <div class="snapshot-cell">
+                        <img src="/media/{{ snapshot_paths[snapshot_index] }}" alt="Snap {{ i + 1 }}" loading="lazy" onerror="this.parentElement.classList.add('error');">
+                    </div>
+                    {% else %}
+                    <div class="snapshot-cell empty">
+                        <div class="snapshot-placeholder"></div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% elif item.media_thumbnail %}
+                <div class="snapshot-cell wide">
+                    <img src="/media/{{ item.media_thumbnail }}" alt="Thumb" loading="lazy" onerror="this.parentElement.classList.add('error');">
+                </div>
+                {% for i in range(snapshot_count - 1) %}
+                <div class="snapshot-cell empty">
+                    <div class="snapshot-placeholder"></div>
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for i in range(snapshot_count) %}
+                <div class="snapshot-cell empty">
+                    {% if i == (snapshot_count // 3) %}
+                    <div class="video-icon">
+                        {% if item.media_type in ['video_note', 'circle'] %}
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 8l6 4-6 4V8z"/></svg>
+                        {% else %}
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="snapshot-placeholder"></div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% endif %}
+            <!-- Inline Video Preview (replaces snapshots) -->
+            <div class="inline-preview" style="display:none;">
+                <video muted loop playsinline></video>
+                <button class="close-inline-btn" onclick="event.stopPropagation(); hideInlinePreview(this);">&times;</button>
+            </div>
+            <!-- Inline Preview Button -->
+            <button class="inline-preview-btn" onclick="event.stopPropagation(); showInlinePreview(this, '{{ item.media_path }}');" title="Preview in frame">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <!-- Mini Popup Preview -->
+            <button class="mini-preview-btn" onclick="event.stopPropagation(); showMiniPreview(this, '{{ item.media_path }}');" title="Quick popup">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+            </button>
+            <!-- Full View Button -->
+            <button class="view-btn" onclick="event.stopPropagation(); openMedia('{{ item.media_path }}', '{{ item.sender_name }}', '{{ item.timestamp[:16] if item.timestamp else '' }}', 'video');">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- Details Row -->
+        <div class="video-details">
+            <div class="details-left">
+                <span class="video-sender" style="color: {% if item.sender_name == my_name %}var(--author-a){% else %}var(--author-b){% endif %};">
+                    {{ item.sender_name.split()[0] if item.sender_name else 'Unknown' }}
+                </span>
+                <span class="video-type {% if item.media_type in ['video_note', 'circle'] %}circle-type{% endif %}">
+                    {% if item.media_type in ['video_note', 'circle'] %}Circle{% elif item.media_type == 'photo' %}Photo{% elif item.media_type == 'audio' or item.media_type == 'voice' %}Audio{% else %}Video{% endif %}
+                </span>
+                {% if item.media_duration %}
+                <span class="video-duration">{{ item.media_duration|format_duration }}</span>
+                {% endif %}
+                {% if item.media_width and item.media_height %}
+                <span class="video-resolution">{{ item.media_width }}x{{ item.media_height }}</span>
+                {% endif %}
+                {% if item.media_size %}
+                <span class="video-size">{{ "%.1f"|format(item.media_size / 1024 / 1024) }}MB</span>
+                {% endif %}
+                <span class="video-time">{{ item.timestamp[5:16] if item.timestamp else '' }}</span>
+            </div>
+        </div>
+
+        <!-- Transcript Row (if available) -->
+        {% if item.transcript %}
+        <div class="video-transcript">
+            <span class="transcript-label">Transcript:</span> <span class="transcript-text">{{ item.transcript }}</span>
+        </div>
+        {% elif item.text %}
+        <div class="video-caption">
+            <span class="caption-text">{{ item.text }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="empty-state card" style="padding: 60px; text-align: center;">
+        <h3 style="margin-bottom: 8px;">No media yet</h3>
+        <p style="color: var(--text-muted);">Videos, photos, and audio messages will appear here.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if page > 1 or has_more %}
+<div style="display: flex; justify-content: center; gap: 20px; margin: 30px 0;">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}&snaps={{ snapshot_count }}{% if filter_type %}&type={{ filter_type }}{% endif %}" style="color: var(--accent); text-decoration: none; font-weight: 500;">&larr; Newer</a>
+    {% endif %}
+    {% if has_more %}
+    <a href="?page={{ page + 1 }}&snaps={{ snapshot_count }}{% if filter_type %}&type={{ filter_type }}{% endif %}" style="color: var(--accent); text-decoration: none; font-weight: 500;">Older &rarr;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- History Unlock Button -->
+{% if not history_unlocked %}
+<div class="history-unlock-container">
+    <button class="history-unlock-btn" onclick="unlockHistory()" title="Unlock full history">⏱️</button>
+</div>
+{% else %}
+<div class="history-unlock-container">
+    <div class="history-unlocked-badge">✓ Full history unlocked</div>
+</div>
+{% endif %}
+
+<!-- Mini Video Preview Popup -->
+<div class="mini-preview-popup" id="miniPreview">
+    <video id="miniPreviewVideo" muted loop></video>
+</div>
+
+<!-- Media Modal -->
+<div class="video-modal" id="videoModal">
+    <div class="modal-header">
+        <div class="modal-info" id="modalInfo"></div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button class="audio-toggle-btn" id="audioToggleBtn" onclick="toggleAudio()" style="display: none;">
+                <svg class="audio-icon-muted" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                </svg>
+                <svg class="audio-icon-unmuted" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+                <span class="audio-label">Unmute</span>
+            </button>
+            <button class="modal-close" onclick="closeVideo()">&times;</button>
+        </div>
+    </div>
+    <div class="modal-content">
+        <video id="modalVideo" controls autoplay muted></video>
+        <img id="modalImage" style="display: none; max-width: 90%; max-height: 90%; border-radius: 8px;" />
+    </div>
+</div>
+</div>
+
+<!-- Fake content (shown when mode is OFF) - Home Assistant Media -->
+<div id="fake-content" style="display:none">
+<div style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <!-- Snapshot Count Selector -->
+            <div class="snap-selector">
+                <span class="snap-label">Snaps:</span>
+                <a href="#" class="snap-btn active">3</a>
+                <a href="#" class="snap-btn">6</a>
+                <a href="#" class="snap-btn">9</a>
+                <a href="#" class="snap-btn">12</a>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; font-size: 0.85rem; flex-wrap: wrap;">
+            <a href="#" class="filter-btn active">All</a>
+            <a href="#" class="filter-btn">Videos</a>
+            <a href="#" class="filter-btn">Circles</a>
+            <a href="#" class="filter-btn">Photos</a>
+            <a href="#" class="filter-btn">Audio</a>
+        </div>
+    </div>
+    <div style="font-size: 0.8rem; color: var(--text-muted);">
+        15 items &bull; 8 videos &bull; 4 circles &bull; 3 photos
+    </div>
+</div>
+
+<div class="video-list">
+    <!-- Fake Home Assistant media items -->
+    <div class="video-row card">
+        <div class="snapshots-strip" data-snapshot-count="3">
+            <div class="snapshot-cell"><div class="snapshot-placeholder" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);"></div></div>
+            <div class="snapshot-cell"><div class="snapshot-placeholder" style="background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);"></div></div>
+            <div class="snapshot-cell"><div class="video-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg></div></div>
+        </div>
+        <div class="video-details">
+            <div class="details-left">
+                <span class="video-sender" style="color: var(--author-a);">Home</span>
+                <span class="video-type">Video</span>
+                <span class="video-duration">00:45</span>
+                <span class="video-resolution">1920x1080</span>
+                <span class="video-size">3.2MB</span>
+                <span class="video-time">12-26 10:30</span>
+            </div>
+        </div>
+        <div class="video-transcript">
+            <span class="transcript-label">Transcript:</span> <span class="transcript-text">Setting up automation for living room lights based on motion sensor triggers and time of day conditions</span>
+        </div>
+    </div>
+
+    <div class="video-row card">
+        <div class="snapshots-strip" data-snapshot-count="3">
+            <div class="snapshot-cell"><div class="snapshot-placeholder" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);"></div></div>
+            <div class="snapshot-cell"><div class="snapshot-placeholder" style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);"></div></div>
+            <div class="snapshot-cell"><div class="video-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg></div></div>
+        </div>
+        <div class="video-details">
+            <div class="details-left">
+                <span class="video-sender" style="color: var(--author-b);">Assistant</span>
+                <span class="video-type">Video</span>
+                <span class="video-duration">01:23</span>
+                <span class="video-resolution">1280x720</span>
+                <span class="video-size">5.1MB</span>
+                <span class="video-time">12-26 09:15</span>
+            </div>
+        </div>
+        <div class="video-transcript">
+            <span class="transcript-label">Transcript:</span> <span class="transcript-text">Dashboard configuration tutorial showing how to create custom cards and integrate sensor data from multiple devices</span>
+        </div>
+    </div>
+
+    <div class="video-row card">
+        <div class="photo-strip">
+            <div class="photo-preview-cell">
+                <div style="width: auto; height: 100%; background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%); border-radius: 4px;"></div>
+            </div>
+            <button class="view-btn" onclick="event.stopPropagation();">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                View
+            </button>
+        </div>
+        <div class="video-details">
+            <div class="details-left">
+                <span class="video-sender" style="color: var(--author-a);">Home</span>
+                <span class="video-type">Photo</span>
+                <span class="video-size">0.8MB</span>
+                <span class="video-time">12-26 08:45</span>
+            </div>
+        </div>
+        <div class="video-caption">
+            <span class="caption-text">Screenshot of Node-RED flow for temperature-based thermostat control</span>
+        </div>
+    </div>
+
+    <div class="video-row card">
+        <div class="snapshots-strip" data-snapshot-count="3">
+            <div class="snapshot-cell"><div class="snapshot-placeholder" style="background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);"></div></div>
+            <div class="snapshot-cell"><div class="snapshot-placeholder" style="background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);"></div></div>
+            <div class="snapshot-cell"><div class="video-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 8l6 4-6 4V8z"/></svg></div></div>
+        </div>
+        <div class="video-details">
+            <div class="details-left">
+                <span class="video-sender" style="color: var(--author-b);">Assistant</span>
+                <span class="video-type circle-type">Circle</span>
+                <span class="video-duration">00:15</span>
+                <span class="video-resolution">480x480</span>
+                <span class="video-size">1.2MB</span>
+                <span class="video-time">12-25 22:10</span>
+            </div>
+        </div>
+        <div class="video-transcript">
+            <span class="transcript-label">Transcript:</span> <span class="transcript-text">Quick demo of ESP32 device integration with custom MQTT sensors and binary switches</span>
+        </div>
+    </div>
+
+    <div class="video-row card">
+        <div class="audio-row">
+            <div class="audio-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/></svg>
+            </div>
+            <div class="audio-controls">
+                <audio controls style="pointer-events: none;">
+                    <source src="" type="audio/mpeg">
+                </audio>
+            </div>
+        </div>
+        <div class="video-details">
+            <div class="details-left">
+                <span class="video-sender" style="color: var(--author-a);">Home</span>
+                <span class="video-type">Audio</span>
+                <span class="video-duration">02:34</span>
+                <span class="video-size">2.1MB</span>
+                <span class="video-time">12-25 20:30</span>
+            </div>
+        </div>
+        <div class="video-transcript">
+            <span class="transcript-label">Transcript:</span> <span class="transcript-text">Voice note explaining how to set up Zigbee2MQTT for Philips Hue bulbs and Aqara sensors with group bindings</span>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+<div style="display: flex; justify-content: center; gap: 20px; margin: 30px 0;">
+    <span style="color: var(--text-muted);">Page 1</span>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Smart Home Widget */
+    .smart-widget { padding: 10px 12px; margin-bottom: 8px; }
+    .widget-header { display: flex; align-items: center; gap: 10px; }
+    .widget-icon { font-size: 18px; }
+    .widget-title { flex: 1; font-weight: 600; font-size: 13px; }
+    .widget-toggle { padding: 4px 12px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; border: none; cursor: pointer; }
+    .widget-toggle.on { background: #d1fae5; color: #047857; }
+    .widget-toggle.off { background: #f3f4f6; color: #6b7280; }
+    [data-theme="dark"] .widget-toggle.on { background: #065f46; color: #d1fae5; }
+    [data-theme="dark"] .widget-toggle.off { background: #374151; color: #9ca3af; }
+
+    /* Snapshot Selector */
+    .snap-selector {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--bg);
+        padding: 4px 8px;
+        border-radius: 8px;
+    }
+
+    .snap-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .snap-btn {
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--text-muted);
+        transition: all 0.2s;
+    }
+
+    .snap-btn:hover {
+        color: var(--accent);
+    }
+
+    .snap-btn.active {
+        background: var(--accent);
+        color: white;
+    }
+
+    .filter-btn {
+        padding: 4px 12px;
+        border-radius: 4px;
+        text-decoration: none;
+        background: var(--bg);
+        color: var(--text-muted);
+        transition: all 0.2s;
+    }
+
+    .filter-btn:hover {
+        color: var(--accent);
+    }
+
+    .filter-btn.active {
+        background: var(--accent);
+        color: white;
+    }
+
+    .process-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #f59e0b;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .process-btn:hover {
+        background: #d97706;
+    }
+
+    .process-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .video-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 30px;
+    }
+
+    .video-row {
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .video-row:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: var(--accent);
+    }
+
+    /* Snapshots Strip */
+    .snapshots-strip {
+        display: flex;
+        align-items: stretch;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        height: 80px;
+        position: relative;
+    }
+
+    /* Dynamic height adjustment for >12 snapshots to make images roughly square */
+    .snapshots-strip[data-snapshot-count="20"] {
+        height: 60px;
+    }
+
+    .snapshots-strip[data-snapshot-count="30"] {
+        height: 45px;
+    }
+
+    .snapshots-strip[data-snapshot-count="40"] {
+        height: 35px;
+    }
+
+    .snapshot-cell {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        border-right: 1px solid var(--border);
+        position: relative;
+    }
+
+    .snapshot-cell:last-of-type {
+        border-right: none;
+    }
+
+    .snapshot-cell img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .snapshot-cell.error img {
+        opacity: 0.3;
+    }
+
+    .snapshot-cell.empty {
+        background: var(--bg);
+    }
+
+    .snapshot-cell.wide {
+        flex: 2;
+    }
+
+    .snapshot-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, var(--bg) 0%, var(--border) 100%);
+    }
+
+    .video-icon {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+    }
+
+    /* Processing overlay */
+    .processing-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        z-index: 5;
+    }
+
+    .processing-content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
+
+    .processing-spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #334155;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    .processing-bar {
+        width: 60%;
+        max-width: 200px;
+        height: 4px;
+        background: #334155;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .processing-bar-fill {
+        width: 30%;
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        border-radius: 2px;
+        animation: processing-progress 2s ease-in-out infinite;
+    }
+
+    @keyframes processing-progress {
+        0% { width: 10%; transform: translateX(0); }
+        50% { width: 50%; }
+        100% { width: 10%; transform: translateX(300%); }
+    }
+
+    /* Process Result Modal */
+    .process-result-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    }
+
+    .process-result-content {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .process-result-content h3 {
+        margin: 0 0 16px 0;
+        font-size: 1.2rem;
+    }
+
+    .process-result-content.error-content h3 {
+        color: #ef4444;
+    }
+
+    .result-stats {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .result-stats .stat {
+        flex: 1;
+        padding: 12px;
+        background: var(--bg);
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .result-stats .stat.success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    [data-theme="dark"] .result-stats .stat.success {
+        background: #14532d;
+        color: #86efac;
+    }
+
+    .result-stats .stat.error {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    [data-theme="dark"] .result-stats .stat.error {
+        background: #450a0a;
+        color: #fca5a5;
+    }
+
+    .result-stats .num {
+        font-size: 1.5rem;
+        font-weight: 600;
+        display: block;
+    }
+
+    .error-log {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+    }
+
+    .error-log h4 {
+        margin: 0 0 8px 0;
+        font-size: 0.9rem;
+        color: #dc2626;
+    }
+
+    .error-log ul {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 0.85rem;
+    }
+
+    .error-log li {
+        margin-bottom: 4px;
+    }
+
+    .error-log code {
+        background: var(--border);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+
+    .error-message {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+    }
+
+    [data-theme="dark"] .error-message {
+        background: #450a0a;
+        color: #fca5a5;
+    }
+
+    .traceback {
+        margin-bottom: 16px;
+    }
+
+    .traceback summary {
+        cursor: pointer;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+
+    .traceback pre {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        overflow-x: auto;
+        margin-top: 8px;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .process-result-content button {
+        width: 100%;
+        padding: 12px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .process-result-content button:hover {
+        background: #1d4ed8;
+    }
+
+    /* Inline Preview Button (smallest, in frame) */
+    .inline-preview-btn {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
+
+    .inline-preview-btn:hover {
+        background: #10b981;
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    /* Inline Preview (in-frame video) */
+    .inline-preview {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #000;
+        z-index: 20;
+    }
+
+    .inline-preview video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .close-inline-btn {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 25;
+    }
+
+    .close-inline-btn:hover {
+        background: #ef4444;
+    }
+
+    /* Mini Preview Button (popup) */
+    .mini-preview-btn {
+        position: absolute;
+        left: 42px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        z-index: 10;
+    }
+
+    [data-theme="dark"] .mini-preview-btn {
+        background: rgba(0, 0, 0, 0.8);
+    }
+
+    .mini-preview-btn:hover {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    /* Mini Preview Popup */
+    .mini-preview-popup {
+        position: fixed;
+        display: none;
+        z-index: 100;
+        pointer-events: none;
+    }
+
+    .mini-preview-popup.active {
+        display: block;
+    }
+
+    .mini-preview-popup video {
+        width: 200px;
+        height: auto;
+        max-height: 150px;
+        border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        object-fit: contain;
+        background: #000;
+    }
+
+    /* View Button */
+    .view-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 16px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        z-index: 10;
+    }
+
+    .view-btn:hover {
+        background: #1d4ed8;
+        transform: translateY(-50%) scale(1.05);
+    }
+
+    .view-btn svg {
+        flex-shrink: 0;
+    }
+
+    /* Details Row */
+    .video-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        gap: 12px;
+    }
+
+    .details-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .video-sender {
+        font-weight: 600;
+    }
+
+    .video-type {
+        background: var(--bg);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .video-type.circle-type {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    [data-theme="dark"] .video-type.circle-type {
+        background: #1e3a5f;
+        color: #60a5fa;
+    }
+
+    .video-duration {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .video-resolution,
+    .video-size {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .video-time {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Transcript */
+    .video-transcript,
+    .video-caption {
+        padding: 8px 14px;
+        border-top: 1px solid var(--border);
+        background: var(--bg);
+    }
+
+    .transcript-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    .transcript-text,
+    .caption-text {
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: var(--text);
+    }
+
+    /* Photo Strip Layout (matches video snapshots height) */
+    .photo-strip {
+        display: flex;
+        align-items: center;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        height: 80px;
+        position: relative;
+        padding-left: 12px;
+    }
+
+    .photo-preview-cell {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .photo-preview-cell img {
+        height: 100%;
+        width: auto;
+        object-fit: contain;
+        border-radius: 4px;
+    }
+
+    /* Audio Row Layout (matches video/photo height) */
+    .audio-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        height: 80px;
+    }
+
+    .audio-icon {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--border);
+        border-radius: 8px;
+        color: var(--text-muted);
+    }
+
+    .audio-controls {
+        flex: 1;
+    }
+
+    .audio-controls audio {
+        width: 100%;
+        max-width: 400px;
+        height: 40px;
+    }
+
+    /* Video Modal */
+    .video-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.95);
+        z-index: 1000;
+        flex-direction: column;
+    }
+
+    .video-modal.active {
+        display: flex;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        background: rgba(0,0,0,0.5);
+    }
+
+    .modal-info {
+        color: white;
+        font-size: 0.9rem;
+    }
+
+    .modal-close {
+        background: rgba(255,255,255,0.1);
+        border: none;
+        color: white;
+        font-size: 2rem;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-close:hover {
+        background: rgba(255,255,255,0.2);
+    }
+
+    .audio-toggle-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+    }
+
+    .audio-toggle-btn:hover {
+        background: rgba(255,255,255,0.2);
+        border-color: rgba(255,255,255,0.5);
+    }
+
+    .audio-toggle-btn.unmuted {
+        background: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .audio-toggle-btn.unmuted:hover {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+    }
+
+    .modal-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .modal-content video {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 8px;
+        outline: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .snapshots-strip,
+        .photo-strip,
+        .audio-row {
+            height: 60px;
+        }
+
+        /* Adjust for larger snapshot counts on mobile */
+        .snapshots-strip[data-snapshot-count="20"] {
+            height: 45px;
+        }
+
+        .snapshots-strip[data-snapshot-count="30"] {
+            height: 35px;
+        }
+
+        .snapshots-strip[data-snapshot-count="40"] {
+            height: 28px;
+        }
+
+        .view-btn {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        .view-btn span {
+            display: none;
+        }
+
+        .video-details {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .details-right {
+            width: 100%;
+            text-align: right;
+        }
+
+        .mini-preview-btn {
+            display: none;
+        }
+
+        .audio-icon {
+            width: 40px;
+            height: 40px;
+        }
+
+        .audio-icon svg {
+            width: 32px;
+            height: 32px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .snapshots-strip,
+        .photo-strip,
+        .audio-row {
+            height: 50px;
+        }
+
+        /* Adjust for larger snapshot counts on small mobile */
+        .snapshots-strip[data-snapshot-count="20"] {
+            height: 35px;
+        }
+
+        .snapshots-strip[data-snapshot-count="30"] {
+            height: 28px;
+        }
+
+        .snapshots-strip[data-snapshot-count="40"] {
+            height: 22px;
+        }
+
+        .video-details {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+        }
+
+        .details-left {
+            gap: 8px;
+        }
+
+        .video-transcript,
+        .video-caption {
+            padding: 8px 10px;
+        }
+
+        .transcript-text,
+        .caption-text {
+            font-size: 0.85rem;
+        }
+
+        .audio-icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .audio-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+    }
+
+    /* History Unlock */
+    .history-unlock-container { display: flex; justify-content: center; padding: 12px; margin-bottom: 8px; }
+    .history-unlock-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .history-unlock-btn:hover { background: var(--border); transform: scale(1.1); }
+    [data-theme="dark"] .history-unlock-btn { background: #374151; border-color: #4b5563; }
+    .history-unlocked-badge { background: #d1fae5; color: #047857; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    [data-theme="dark"] .history-unlocked-badge { background: #065f46; color: #d1fae5; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Mode toggle (ON = real, OFF = fake/Home Assistant)
+    // Default to OFF (safe mode) - only ON if explicitly set
+    // Uses timestamp to ensure 60-second timeout works across page refreshes
+    const MODE_KEY = 'mediRealMode';
+    const MODE_TIME_KEY = 'mediRealModeTime';
+    const MODE_TIMEOUT = 60000; // 60 seconds
+
+    function checkModeTimeout() {
+        const modeTime = parseInt(localStorage.getItem(MODE_TIME_KEY) || '0');
+        const now = Date.now();
+        if (now - modeTime > MODE_TIMEOUT) {
+            localStorage.setItem(MODE_KEY, 'false');
+            return false;
+        }
+        return localStorage.getItem(MODE_KEY) === 'true';
+    }
+
+    let realMode = checkModeTimeout();
+    updateModeUI();
+
+    // Check timeout every 5 seconds (works even with page refresh)
+    setInterval(() => {
+        const wasReal = realMode;
+        realMode = checkModeTimeout();
+        if (wasReal && !realMode) {
+            updateModeUI();
+        }
+    }, 5000);
+
+    function toggleMode() {
+        realMode = !realMode;
+        localStorage.setItem(MODE_KEY, realMode ? 'true' : 'false');
+        if (realMode) {
+            localStorage.setItem(MODE_TIME_KEY, Date.now().toString());
+        }
+        updateModeUI();
+    }
+
+    function updateModeUI() {
+        const btn = document.getElementById('mode-btn');
+        const realContent = document.getElementById('real-content');
+        const fakeContent = document.getElementById('fake-content');
+
+        if (realMode) {
+            btn.textContent = 'ON';
+            btn.className = 'widget-toggle on';
+            realContent.style.display = 'block';
+            fakeContent.style.display = 'none';
+        } else {
+            btn.textContent = 'OFF';
+            btn.className = 'widget-toggle off';
+            realContent.style.display = 'none';
+            fakeContent.style.display = 'block';
+        }
+    }
+
+    const modal = document.getElementById('videoModal');
+    const modalVideo = document.getElementById('modalVideo');
+    const modalImage = document.getElementById('modalImage');
+    const modalInfo = document.getElementById('modalInfo');
+    const audioToggleBtn = document.getElementById('audioToggleBtn');
+    const miniPreview = document.getElementById('miniPreview');
+    const miniPreviewVideo = document.getElementById('miniPreviewVideo');
+
+    function openMedia(path, sender, time, type) {
+        if (type === 'photo') {
+            modalVideo.style.display = 'none';
+            modalImage.style.display = 'block';
+            modalImage.src = '/media/' + path;
+            audioToggleBtn.style.display = 'none';
+        } else {
+            modalVideo.style.display = 'block';
+            modalImage.style.display = 'none';
+            modalVideo.src = '/media/' + path;
+            modalVideo.muted = true;
+            audioToggleBtn.style.display = 'flex';
+            updateAudioButton();
+        }
+
+        modalInfo.innerHTML = '<strong>' + sender + '</strong> &bull; ' + time;
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function toggleAudio() {
+        modalVideo.muted = !modalVideo.muted;
+        updateAudioButton();
+    }
+
+    function updateAudioButton() {
+        const mutedIcon = audioToggleBtn.querySelector('.audio-icon-muted');
+        const unmutedIcon = audioToggleBtn.querySelector('.audio-icon-unmuted');
+        const label = audioToggleBtn.querySelector('.audio-label');
+
+        if (modalVideo.muted) {
+            mutedIcon.style.display = 'block';
+            unmutedIcon.style.display = 'none';
+            label.textContent = 'Unmute';
+            audioToggleBtn.classList.remove('unmuted');
+        } else {
+            mutedIcon.style.display = 'none';
+            unmutedIcon.style.display = 'block';
+            label.textContent = 'Mute';
+            audioToggleBtn.classList.add('unmuted');
+        }
+    }
+
+    function closeVideo() {
+        modal.classList.remove('active');
+        modalVideo.pause();
+        modalVideo.src = '';
+        modalVideo.muted = true;
+        modalImage.src = '';
+        document.body.style.overflow = '';
+        audioToggleBtn.style.display = 'none';
+    }
+
+    // Inline preview functionality (within frame)
+    function showInlinePreview(btn, path) {
+        const strip = btn.closest('.snapshots-strip');
+        const inlinePreview = strip.querySelector('.inline-preview');
+        const video = inlinePreview.querySelector('video');
+
+        // Load and play video
+        video.src = '/media/' + path;
+        video.play().catch(() => {});
+
+        // Show inline preview
+        inlinePreview.style.display = 'block';
+    }
+
+    function hideInlinePreview(btn) {
+        const inlinePreview = btn.closest('.inline-preview');
+        const video = inlinePreview.querySelector('video');
+
+        // Stop and hide
+        video.pause();
+        video.src = '';
+        inlinePreview.style.display = 'none';
+    }
+
+    // Mini preview functionality
+    let previewTimeout = null;
+
+    function showMiniPreview(btn, path) {
+        const rect = btn.getBoundingClientRect();
+
+        // Position popup
+        miniPreview.style.left = (rect.right + 10) + 'px';
+        miniPreview.style.top = (rect.top - 50) + 'px';
+
+        // Load and play video
+        miniPreviewVideo.src = '/media/' + path;
+        miniPreviewVideo.play().catch(() => {});
+
+        miniPreview.classList.add('active');
+
+        // Auto-hide after 5 seconds
+        clearTimeout(previewTimeout);
+        previewTimeout = setTimeout(hideMiniPreview, 5000);
+    }
+
+    function hideMiniPreview() {
+        miniPreview.classList.remove('active');
+        miniPreviewVideo.pause();
+        miniPreviewVideo.src = '';
+        clearTimeout(previewTimeout);
+    }
+
+    // Hide preview on any click
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.mini-preview-btn') && !e.target.closest('.mini-preview-popup')) {
+            hideMiniPreview();
+        }
+    });
+
+    // Process snapshots
+    function processSnapshots() {
+        const btn = document.querySelector('.process-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="spin"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> Processing...';
+
+        fetch('/api/medi/process-snapshots', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Show results summary
+                    let msg = `✓ Processed: ${data.processed} videos`;
+                    if (data.failed > 0) {
+                        msg += `\n✗ Failed: ${data.failed} videos`;
+                    }
+                    if (data.errors && data.errors.length > 0) {
+                        msg += '\n\nErrors:';
+                        data.errors.forEach(err => {
+                            msg += `\n• ${err.file}: ${err.error}`;
+                        });
+                    }
+                    if (data.processed > 0 || data.failed > 0) {
+                        showProcessResult(data);
+                    } else {
+                        btn.innerHTML = 'No videos to process';
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                } else {
+                    // Show error details
+                    let errMsg = 'Error: ' + (data.error || 'Unknown error');
+                    if (data.traceback) {
+                        console.error('Traceback:', data.traceback);
+                        errMsg += '\n\nCheck console for details';
+                    }
+                    showProcessError(data.error, data.traceback);
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg> Error';
+                }
+            })
+            .catch(err => {
+                console.error('Process error:', err);
+                showProcessError('Network error: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = 'Error';
+            });
+    }
+
+    function showProcessResult(data) {
+        const modal = document.createElement('div');
+        modal.className = 'process-result-modal';
+        modal.innerHTML = `
+            <div class="process-result-content">
+                <h3>${data.processed > 0 ? '✓' : '⚠'} Processing Complete</h3>
+                <div class="result-stats">
+                    <div class="stat success"><span class="num">${data.processed}</span> processed</div>
+                    <div class="stat ${data.failed > 0 ? 'error' : ''}""><span class="num">${data.failed}</span> failed</div>
+                </div>
+                ${data.errors && data.errors.length > 0 ? `
+                    <div class="error-log">
+                        <h4>Errors:</h4>
+                        <ul>
+                            ${data.errors.map(e => `<li><code>${e.file}</code>: ${e.error}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+                <button onclick="this.parentElement.parentElement.remove(); location.reload();">OK</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    function showProcessError(error, traceback) {
+        const modal = document.createElement('div');
+        modal.className = 'process-result-modal';
+        modal.innerHTML = `
+            <div class="process-result-content error-content">
+                <h3>✗ Processing Failed</h3>
+                <div class="error-message">${error}</div>
+                ${traceback ? `
+                    <details class="traceback">
+                        <summary>Technical Details</summary>
+                        <pre>${traceback}</pre>
+                    </details>
+                ` : ''}
+                <button onclick="this.parentElement.parentElement.remove();">Close</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Add spin animation
+    const style = document.createElement('style');
+    style.textContent = '.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+
+    // Auto-refresh for processing items
+    function checkProcessingItems() {
+        const processingItems = document.querySelectorAll('.processing-overlay');
+        if (processingItems.length > 0) {
+            // Reload page after 3 seconds to check if processing is done
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        }
+    }
+    checkProcessingItems();
+
+    // Close modal on background click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal || e.target.classList.contains('modal-content')) {
+            closeVideo();
+        }
+    });
+
+    // Close on escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeVideo();
+        }
+    });
+
+    // Click on row to open media
+    document.querySelectorAll('.video-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.view-btn') || e.target.closest('.mini-preview-btn') || e.target.closest('.inline-preview-btn') || e.target.closest('.inline-preview') || e.target.closest('audio')) return;
+
+            const path = this.dataset.path;
+            const mediaType = this.dataset.mediaType;
+            const sender = this.querySelector('.video-sender').textContent.trim();
+            const time = this.querySelector('.video-time').textContent.trim();
+
+            if (mediaType === 'photo') {
+                openMedia(path, sender, time, 'photo');
+            } else if (mediaType === 'audio' || mediaType === 'voice') {
+                return;
+            } else {
+                openMedia(path, sender, time, 'video');
+            }
+        });
+    });
+
+    function unlockHistory() {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: var(--bg);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+        `;
+
+        modalContent.innerHTML = `
+            <h3 style="margin: 0 0 16px 0; color: var(--text);">What time is it?</h3>
+            <input type="text" id="history-password" placeholder="Enter time"
+                style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px;
+                       background: var(--bg); color: var(--text); font-size: 1rem; margin-bottom: 16px; box-sizing: border-box;">
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button id="unlock-cancel" style="padding: 10px 20px; border: 1px solid var(--border);
+                        border-radius: 6px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.9rem;">
+                    Cancel
+                </button>
+                <button id="unlock-submit" style="padding: 10px 20px; border: none; border-radius: 6px;
+                        background: var(--accent); color: white; cursor: pointer; font-weight: 500; font-size: 0.9rem;">
+                    Unlock
+                </button>
+            </div>
+            <div id="unlock-error" style="margin-top: 12px; color: #e74c3c; font-size: 0.85rem; display: none;"></div>
+        `;
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        const passwordInput = document.getElementById('history-password');
+        const submitBtn = document.getElementById('unlock-submit');
+        const cancelBtn = document.getElementById('unlock-cancel');
+        const errorDiv = document.getElementById('unlock-error');
+
+        // Focus input
+        setTimeout(() => passwordInput.focus(), 100);
+
+        // Handle submit
+        const handleSubmit = async () => {
+            const password = passwordInput.value.trim();
+            if (!password) {
+                errorDiv.textContent = 'Please enter a time';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/unlock-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    modal.remove();
+                    location.reload();
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid password';
+                    errorDiv.style.display = 'block';
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        };
+
+        // Event listeners
+        submitBtn.addEventListener('click', handleSubmit);
+        cancelBtn.addEventListener('click', () => modal.remove());
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSubmit();
+        });
+
+        // Close on outside click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+</script>
+{% endblock %}

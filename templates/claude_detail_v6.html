@@ -1,0 +1,367 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Request #{{ request.id }}{% endblock %}
+
+{% block extra_styles %}
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.back-btn {
+    padding: 6px 12px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.back-btn:hover {
+    background: var(--border);
+}
+
+.page-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.request-status {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.request-status.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.request-status.processing {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.request-status.completed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.request-status.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+[data-theme="dark"] .request-status.pending {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+[data-theme="dark"] .request-status.processing {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+[data-theme="dark"] .request-status.completed {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+[data-theme="dark"] .request-status.error {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+.refresh-time {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: auto;
+}
+
+.refresh-btn {
+    padding: 6px 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.request-detail {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.request-detail h3 {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.request-text {
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.request-meta {
+    display: flex;
+    gap: 24px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.request-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.logs-section {
+    padding: 16px;
+}
+
+.logs-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.logs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.log-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+}
+
+.log-line.info {
+    border-left: 2px solid var(--accent);
+}
+
+.log-line.success {
+    border-left: 2px solid #10b981;
+}
+
+.log-line.error {
+    border-left: 2px solid #ef4444;
+}
+
+.log-line.warning {
+    border-left: 2px solid #f59e0b;
+}
+
+.log-timestamp {
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.log-type {
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    border-radius: 2px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.log-line.info .log-type {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.log-line.success .log-type {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.log-line.error .log-type {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.log-line.warning .log-type {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+[data-theme="dark"] .log-line.info .log-type {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+[data-theme="dark"] .log-line.success .log-type {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+[data-theme="dark"] .log-line.error .log-type {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+[data-theme="dark"] .log-line.warning .log-type {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+.log-message {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.empty-logs {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.response-section {
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.response-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+
+.response-text {
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    border-left: 3px solid #10b981;
+}
+
+.pending-notice {
+    text-align: center;
+    padding: 24px;
+    background: #fef3c7;
+    border-radius: 6px;
+    color: #92400e;
+}
+
+[data-theme="dark"] .pending-notice {
+    background: #78350f;
+    color: #fef3c7;
+}
+
+.pending-notice h4 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.pending-notice p {
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('claude_control') }}" class="back-btn">← Back</a>
+    <span class="page-title">Request #{{ request.id }}</span>
+    <span class="request-status {{ request.status }}">{{ request.status }}</span>
+    <span class="refresh-time">{{ last_refresh }}</span>
+    <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+</div>
+
+<div class="request-detail card">
+    <h3>Request</h3>
+    <div class="request-text">{{ request.text }}</div>
+    <div class="request-meta">
+        <span>Created: {{ request.created_at[5:16] if request.created_at else 'Unknown' }}</span>
+        {% if request.completed_at %}
+        <span>Completed: {{ request.completed_at[5:16] }}</span>
+        {% endif %}
+    </div>
+</div>
+
+{% if request.status == 'pending' %}
+<div class="card" style="padding: 16px;">
+    <div class="pending-notice">
+        <h4><span class="spinner"></span>Waiting for Claude</h4>
+        <p>This request is queued. When Claude Code picks it up, you'll see the progress here.</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="logs-section card">
+    <h3>Activity Log</h3>
+    <div class="logs-list" id="logs-list">
+        {% if logs %}
+            {% for log in logs %}
+            <div class="log-line {{ log.log_type }}">
+                <span class="log-timestamp">{{ log.timestamp[11:19] if log.timestamp else '' }}</span>
+                <span class="log-type">{{ log.log_type }}</span>
+                <span class="log-message">{{ log.message }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-logs">No activity yet. Logs will appear here as Claude works on this request.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if request.response %}
+<div class="response-section card">
+    <h3>Response</h3>
+    <div class="response-text">{{ request.response }}</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh every 5 seconds if request is still pending or processing
+{% if request.status in ['pending', 'processing'] %}
+setInterval(() => {
+    location.reload();
+}, 5000);
+{% endif %}
+</script>
+{% endblock %}

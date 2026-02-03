@@ -1,0 +1,103 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Medi - Login{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .medi-login {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 60vh;
+        padding: 20px;
+    }
+
+    .medi-login-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 40px;
+        max-width: 360px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .medi-login-card h2 {
+        margin-bottom: 8px;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .medi-login-card p {
+        color: var(--text-muted);
+        margin-bottom: 24px;
+        font-size: 0.9rem;
+    }
+
+    .medi-login-card input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 1rem;
+        margin-bottom: 16px;
+    }
+
+    .medi-login-card input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .medi-login-card button {
+        width: 100%;
+        padding: 12px 24px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .medi-login-card button:hover {
+        background: #1d4ed8;
+    }
+
+    .error {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 10px 16px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+    }
+
+    [data-theme="dark"] .error {
+        background: #450a0a;
+        color: #fca5a5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="medi-login">
+    <div class="medi-login-card">
+        <h2>Medi</h2>
+        <p>Enter password to view media content</p>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="password" name="password" placeholder="Password" autofocus>
+            <button type="submit">Unlock</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

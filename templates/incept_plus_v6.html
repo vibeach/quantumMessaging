@@ -1,0 +1,1077 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Incept+ - AI-Powered Improvements{% endblock %}
+
+{% block content %}
+<style>
+    .incept-plus-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: var(--text);
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+        width: 100%;
+        padding: 10px 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 14px;
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        opacity: 0.9;
+    }
+
+    .btn-secondary {
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+        background: var(--border);
+    }
+
+    .btn-success {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-warning {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .suggestion-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        transition: all 0.2s;
+    }
+
+    .suggestion-card:hover {
+        border-color: var(--accent);
+    }
+
+    .suggestion-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 12px;
+    }
+
+    .suggestion-title {
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--text);
+        margin-bottom: 4px;
+    }
+
+    .suggestion-meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+
+    .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .badge-feature { background: #dbeafe; color: #1e40af; }
+    .badge-bugfix { background: #fee2e2; color: #991b1b; }
+    .badge-performance { background: #fef3c7; color: #92400e; }
+    .badge-refactoring { background: #e0e7ff; color: #3730a3; }
+    .badge-ui { background: #fce7f3; color: #831843; }
+    .badge-testing { background: #ddd6fe; color: #5b21b6; }
+    .badge-documentation { background: #d1fae5; color: #065f46; }
+    .badge-security { background: #fecaca; color: #7f1d1d; }
+
+    .badge-priority-1 { background: #fee2e2; color: #991b1b; }
+    .badge-priority-2 { background: #fed7aa; color: #9a3412; }
+    .badge-priority-3 { background: #fef3c7; color: #92400e; }
+    .badge-priority-4 { background: #dbeafe; color: #1e40af; }
+    .badge-priority-5 { background: #e5e7eb; color: #374151; }
+
+    .suggestion-description {
+        color: var(--text-muted);
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+
+    .suggestion-details {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 12px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+    }
+
+    .suggestion-details.expanded {
+        display: block;
+    }
+
+    .suggestion-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .improvement-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .improvement-info {
+        flex: 1;
+    }
+
+    .improvement-title {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 4px;
+    }
+
+    .improvement-description {
+        color: var(--text-muted);
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+
+    .improvement-meta {
+        display: flex;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .improvement-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--border);
+        transition: 0.3s;
+        border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+        background-color: var(--accent);
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+    }
+
+    .auto-mode-panel {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .auto-mode-panel h3 {
+        margin-bottom: 12px;
+        font-size: 1.1rem;
+    }
+
+    .auto-mode-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    .status-indicator.active {
+        background: #10b981;
+    }
+
+    .status-indicator.inactive {
+        background: #6b7280;
+        animation: none;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--accent);
+        margin-bottom: 4px;
+    }
+
+    .stat-label {
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+    }
+
+    .empty-state svg {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .tabs {
+        display: flex;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 20px;
+    }
+
+    .tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        color: var(--text-muted);
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .tab:hover {
+        color: var(--text);
+    }
+
+    .tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    .loading {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-muted);
+    }
+
+    .loading::after {
+        content: "...";
+        animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+        0%, 20% { content: "."; }
+        40% { content: ".."; }
+        60%, 100% { content: "..."; }
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+    }
+
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+    }
+
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+
+    .alert-info {
+        background: #dbeafe;
+        color: #1e40af;
+        border: 1px solid #93c5fd;
+    }
+</style>
+
+<div class="incept-plus-container">
+    <div class="section-header">
+        <h1 class="section-title">Incept+ - AI-Powered Improvements</h1>
+        <div>
+            <button class="btn btn-secondary btn-sm" onclick="location.reload()">Refresh</button>
+        </div>
+    </div>
+
+    <!-- Stats Dashboard -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="stat-suggestions">{{ (latest_suggestions|length) + (suggestions|length) }}</div>
+            <div class="stat-label">Pending Suggestions</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-improvements">{{ improvements|length }}</div>
+            <div class="stat-label">Implemented</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-enabled">{{ improvements|selectattr('enabled')|list|length }}</div>
+            <div class="stat-label">Active Improvements</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{% if auto_session %}Active{% else %}Idle{% endif %}</div>
+            <div class="stat-label">Auto-Mode Status</div>
+        </div>
+    </div>
+
+    <!-- Push Control Panel -->
+    <div class="card" id="push-control-panel" style="margin-bottom: 16px; padding: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;" title="When enabled, automatically push all commits after the entire queue completes">
+                        <input type="checkbox" id="push-queue-at-end-toggle" onchange="togglePushQueueAtEnd(this.checked)">
+                        <span style="font-weight: 500;">Push All Queue at End</span>
+                    </label>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Auto-push when queue empties (recommended)</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div id="git-status" style="font-size: 0.85rem;">
+                        <span style="color: var(--text-muted);">Loading git status...</span>
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="push-all-btn" style="display: none;" onclick="pushAllCommits()">
+                        Push All
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; padding-top: 8px; border-top: 1px solid var(--border);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; opacity: 0.7;" title="Manual control: commit but never push until you click Push All">
+                    <input type="checkbox" id="batch-mode-toggle" onchange="toggleBatchMode(this.checked)">
+                    <span style="font-size: 0.9rem;">Batch Mode (manual)</span>
+                </label>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">Never auto-push - manual Push All only</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-Mode Panel -->
+    {% if auto_session %}
+    <div class="auto-mode-panel">
+        <h3>Auto-Mode Active</h3>
+        <div class="auto-mode-status">
+            <div class="status-indicator active"></div>
+            <span>Continuously generating and implementing improvements</span>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <strong>Direction:</strong> {{ auto_session.direction }}<br>
+            <strong>Progress:</strong> {{ auto_session.suggestions_implemented }}/{{ auto_session.max_suggestions }} suggestions implemented
+        </div>
+        <button class="btn btn-danger" onclick="stopAutoMode()">Stop Auto-Mode</button>
+    </div>
+    {% endif %}
+
+    <!-- Main Tabs -->
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('generate')">Generate{% if latest_suggestions %} ({{ latest_suggestions|length }}){% endif %}</div>
+        <div class="tab" onclick="switchTab('suggestions')">Previous{% if suggestions %} ({{ suggestions|length }}){% endif %}</div>
+        <div class="tab" onclick="switchTab('improvements')">Improvements ({{ improvements|length }})</div>
+        <div class="tab" onclick="switchTab('auto')">Auto-Mode</div>
+    </div>
+
+    <!-- Generate Tab -->
+    <div class="tab-content active" id="tab-generate">
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">Generate New Suggestions</h3>
+            <div id="generate-alert"></div>
+            <form onsubmit="generateSuggestions(event)">
+                <div class="form-group">
+                    <label class="form-label">Improvement Direction *</label>
+                    <textarea id="direction" class="form-textarea" placeholder="Describe what you want to improve, e.g., 'Make the UI more responsive', 'Add real-time features', 'Improve performance', etc." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Additional Context (Optional)</label>
+                    <textarea id="context" class="form-textarea" placeholder="Provide any additional context about the codebase or specific areas to focus on..."></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Mode</label>
+                        <select id="suggestion-mode" class="form-select">
+                            <option value="cli" {% if settings.suggestion_mode == 'cli' %}selected{% endif %}>CLI (Local)</option>
+                            <option value="cli_token" {% if settings.suggestion_mode == 'cli_token' %}selected{% endif %}>CLI Token (Max membership)</option>
+                            <option value="api" {% if settings.suggestion_mode == 'api' %}selected{% endif %}>API (Credits)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Model</label>
+                        <select id="suggestion-model" class="form-select">
+                            <option value="claude-sonnet-4-20250514" {% if settings.suggestion_model == 'claude-sonnet-4-20250514' %}selected{% endif %}>Claude Sonnet 4</option>
+                            <option value="claude-opus-4-20250514" {% if settings.suggestion_model == 'claude-opus-4-20250514' %}selected{% endif %}>Claude Opus 4</option>
+                            <option value="claude-3-5-haiku-20241022" {% if settings.suggestion_model == 'claude-3-5-haiku-20241022' %}selected{% endif %}>Claude 3.5 Haiku</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Suggestions</label>
+                        <input type="number" id="max-suggestions" class="form-input" value="10" min="1" max="20">
+                    </div>
+                </div>
+                <div style="margin: 12px 0; padding: 10px; background: var(--bg); border-radius: 6px; font-size: 0.85rem;">
+                    <strong>Auth Status:</strong>
+                    <span style="margin-left: 8px;">API Key: {% if has_api_key %}<span style="color: #10b981;">Set</span>{% else %}<span style="color: #ef4444;">Not set</span>{% endif %}</span>
+                    <span style="margin-left: 12px;">OAuth Token: {% if has_oauth_token %}<span style="color: #10b981;">Set</span>{% else %}<span style="color: #ef4444;">Not set</span>{% endif %}</span>
+                    <div style="margin-top: 6px; color: var(--text-muted); font-size: 0.8rem;">
+                        CLI Token uses Max membership (unlimited) - no API credits consumed
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="generate-btn">Generate Suggestions</button>
+                <button type="button" class="btn btn-secondary" onclick="saveSettings()" style="margin-left: 8px;">Save Settings</button>
+            </form>
+        </div>
+
+        <!-- Latest Suggestions (below the form) -->
+        {% if latest_suggestions %}
+        <div class="card" style="margin-top: 20px;">
+            <div class="section-header">
+                <h3>Latest Suggestions</h3>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Generated {{ latest_suggestions[0].created_at[11:16] if latest_suggestions[0].created_at else '' }}</span>
+            </div>
+            <div id="latest-suggestions-list">
+                {% for suggestion in latest_suggestions %}
+                <div class="suggestion-card" data-id="{{ suggestion.id }}">
+                    <div class="suggestion-header">
+                        <div style="flex: 1;">
+                            <div class="suggestion-title">{{ suggestion.title }}</div>
+                            <div class="suggestion-meta">
+                                <span class="badge badge-{{ suggestion.category }}">{{ suggestion.category }}</span>
+                                <span class="badge badge-priority-{{ suggestion.priority }}">Priority {{ suggestion.priority }}</span>
+                                <span class="badge">{{ suggestion.estimated_effort or 'medium' }}</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 8px;">{{ suggestion.created_at[5:16] if suggestion.created_at else '' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="suggestion-description">{{ suggestion.description }}</div>
+                    <div class="suggestion-actions">
+                        <button class="btn btn-sm btn-secondary" onclick="toggleDetails({{ suggestion.id }})">View Details</button>
+                        <button class="btn btn-sm btn-success" onclick="acceptSuggestion({{ suggestion.id }})">Accept</button>
+                        <button class="btn btn-sm btn-danger" onclick="rejectSuggestion({{ suggestion.id }})">Reject</button>
+                        <button class="btn btn-sm btn-primary" onclick="implementSuggestion({{ suggestion.id }})">Implement Now</button>
+                    </div>
+                    <div class="suggestion-details" id="details-{{ suggestion.id }}">{{ suggestion.implementation_details }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Suggestions Tab (Older/Previous Batches) -->
+    <div class="tab-content" id="tab-suggestions">
+        <div class="section-header">
+            <h3>Previous Suggestions</h3>
+            <div>
+                <button class="btn btn-success btn-sm" onclick="implementAllAccepted()">Implement All Accepted</button>
+            </div>
+        </div>
+        <div id="suggestions-list">
+            {% if suggestions %}
+                {% for suggestion in suggestions %}
+                <div class="suggestion-card" data-id="{{ suggestion.id }}">
+                    <div class="suggestion-header">
+                        <div style="flex: 1;">
+                            <div class="suggestion-title">{{ suggestion.title }}</div>
+                            <div class="suggestion-meta">
+                                <span class="badge badge-{{ suggestion.category }}">{{ suggestion.category }}</span>
+                                <span class="badge badge-priority-{{ suggestion.priority }}">Priority {{ suggestion.priority }}</span>
+                                <span class="badge">{{ suggestion.estimated_effort or 'medium' }}</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 8px;">{{ suggestion.created_at[5:16] if suggestion.created_at else '' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="suggestion-description">{{ suggestion.description }}</div>
+                    <div class="suggestion-actions">
+                        <button class="btn btn-sm btn-secondary" onclick="toggleDetails({{ suggestion.id }})">View Details</button>
+                        <button class="btn btn-sm btn-success" onclick="acceptSuggestion({{ suggestion.id }})">Accept</button>
+                        <button class="btn btn-sm btn-danger" onclick="rejectSuggestion({{ suggestion.id }})">Reject</button>
+                        <button class="btn btn-sm btn-primary" onclick="implementSuggestion({{ suggestion.id }})">Implement Now</button>
+                    </div>
+                    <div class="suggestion-details" id="details-{{ suggestion.id }}">{{ suggestion.implementation_details }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/>
+                    </svg>
+                    <h3>No older suggestions</h3>
+                    <p>Previous batches will appear here</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Improvements Tab -->
+    <div class="tab-content" id="tab-improvements">
+        <h3 style="margin-bottom: 16px;">Implemented Improvements</h3>
+        <div id="improvements-list">
+            {% if improvements %}
+                {% for improvement in improvements %}
+                <div class="improvement-card" data-id="{{ improvement.id }}">
+                    <div class="improvement-info">
+                        <div class="improvement-title">{{ improvement.title }}</div>
+                        <div class="improvement-description">{{ improvement.description }}</div>
+                        <div class="improvement-meta">
+                            <span>Implemented: {{ improvement.created_at[:10] }}</span>
+                            {% if improvement.commit_hash %}
+                            <span>Commit: {{ improvement.commit_hash[:7] }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="improvement-actions">
+                        <button class="btn btn-sm btn-danger" onclick="rollbackImprovement({{ improvement.id }})" title="Revert this improvement">Rollback</button>
+                        <label class="toggle-switch">
+                            <input type="checkbox" {% if improvement.enabled %}checked{% endif %} onchange="toggleImprovement({{ improvement.id }}, this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+                    </svg>
+                    <h3>No improvements yet</h3>
+                    <p>Implement suggestions to see them here</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Auto-Mode Tab -->
+    <div class="tab-content" id="tab-auto">
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">Auto-Mode Configuration</h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">
+                Auto-mode continuously generates and implements improvements based on your direction.
+                <strong>Warning:</strong> This will automatically make changes to your codebase!
+            </p>
+            <div id="auto-alert"></div>
+            <form onsubmit="startAutoMode(event)">
+                <div class="form-group">
+                    <label class="form-label">Improvement Direction *</label>
+                    <textarea id="auto-direction" class="form-textarea" placeholder="Describe the direction for continuous improvements..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Maximum Suggestions</label>
+                    <input type="number" id="auto-max" class="form-input" value="10" min="1" max="50">
+                </div>
+                <button type="submit" class="btn btn-warning">Start Auto-Mode</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.getElementById('tab-' + tabName).classList.add('active');
+    }
+
+    function toggleDetails(id) {
+        const details = document.getElementById('details-' + id);
+        details.classList.toggle('expanded');
+    }
+
+    async function generateSuggestions(e) {
+        e.preventDefault();
+        const btn = document.getElementById('generate-btn');
+        const alert = document.getElementById('generate-alert');
+
+        btn.disabled = true;
+        btn.textContent = 'Saving settings...';
+        alert.innerHTML = '';
+
+        try {
+            // First save the mode/model settings so they're used
+            const mode = document.getElementById('suggestion-mode').value;
+            const model = document.getElementById('suggestion-model').value;
+
+            await fetch('/api/incept-plus/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    suggestion_mode: mode,
+                    suggestion_model: model
+                })
+            });
+
+            btn.textContent = 'Generating...';
+
+            const response = await fetch('/api/incept-plus/suggest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    direction: document.getElementById('direction').value,
+                    context: document.getElementById('context').value,
+                    max_suggestions: parseInt(document.getElementById('max-suggestions').value)
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert.innerHTML = '<div class="alert alert-success">Generated ' + data.count + ' suggestions! Switching to Suggestions tab...</div>';
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                alert.innerHTML = '<div class="alert alert-error">Error: ' + data.error + '</div>';
+            }
+        } catch (error) {
+            alert.innerHTML = '<div class="alert alert-error">Error: ' + error.message + '</div>';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Generate Suggestions';
+        }
+    }
+
+    async function acceptSuggestion(id) {
+        try {
+            const response = await fetch('/api/incept-plus/suggestion/' + id + '/accept', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    async function rejectSuggestion(id) {
+        if (!confirm('Are you sure you want to reject this suggestion?')) return;
+
+        try {
+            const response = await fetch('/api/incept-plus/suggestion/' + id + '/reject', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    async function implementSuggestion(id) {
+        if (!confirm('This will create an Incept request to implement this suggestion. Continue?')) return;
+
+        try {
+            const response = await fetch('/api/incept-plus/suggestion/' + id + '/implement', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert('Implementation request created! Redirecting to Incept...');
+                setTimeout(() => {
+                    window.location.href = '/incept/' + data.request_id;
+                }, 1500);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    async function implementAllAccepted() {
+        // This would implement all accepted suggestions
+        alert('Feature coming soon: Batch implementation');
+    }
+
+    async function toggleImprovement(id, enabled) {
+        try {
+            const response = await fetch('/api/incept-plus/improvement/' + id + '/toggle', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (data.success) {
+                console.log('Improvement toggled:', data.enabled);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    async function startAutoMode(e) {
+        e.preventDefault();
+
+        if (!confirm('Auto-mode will continuously make changes to your codebase. Are you sure?')) return;
+
+        const alert = document.getElementById('auto-alert');
+        alert.innerHTML = '<div class="alert alert-info">Starting auto-mode...</div>';
+
+        try {
+            const response = await fetch('/api/incept-plus/auto-mode/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    direction: document.getElementById('auto-direction').value,
+                    max_suggestions: parseInt(document.getElementById('auto-max').value)
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert.innerHTML = '<div class="alert alert-success">Auto-mode started! Reloading...</div>';
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                alert.innerHTML = '<div class="alert alert-error">Error: ' + data.error + '</div>';
+            }
+        } catch (error) {
+            alert.innerHTML = '<div class="alert alert-error">Error: ' + error.message + '</div>';
+        }
+    }
+
+    async function stopAutoMode() {
+        if (!confirm('Stop auto-mode?')) return;
+
+        try {
+            const response = await fetch('/api/incept-plus/auto-mode/stop', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    async function rollbackImprovement(id) {
+        if (!confirm('This will revert the changes made by this improvement. Continue?')) return;
+
+        try {
+            const response = await fetch('/api/incept-plus/improvement/' + id + '/rollback', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert('Success: ' + data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    async function saveSettings() {
+        const mode = document.getElementById('suggestion-mode').value;
+        const model = document.getElementById('suggestion-model').value;
+
+        try {
+            const response = await fetch('/api/incept-plus/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    suggestion_mode: mode,
+                    suggestion_model: model
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                const alertDiv = document.getElementById('generate-alert');
+                alertDiv.innerHTML = '<div class="alert alert-success">Settings saved!</div>';
+                setTimeout(() => alertDiv.innerHTML = '', 3000);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+
+    // Push Control Functions
+    async function loadPushQueueAtEndStatus() {
+        try {
+            const response = await fetch('/api/incept-plus/push-queue-at-end');
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('push-queue-at-end-toggle').checked = data.push_queue_at_end;
+            }
+        } catch (error) {
+            console.error('Failed to load push queue at end status:', error);
+        }
+    }
+
+    async function togglePushQueueAtEnd(enabled) {
+        try {
+            const response = await fetch('/api/incept-plus/push-queue-at-end', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+            const data = await response.json();
+            if (!data.success) {
+                alert('Error toggling push queue at end');
+                document.getElementById('push-queue-at-end-toggle').checked = !enabled;
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            document.getElementById('push-queue-at-end-toggle').checked = !enabled;
+        }
+    }
+
+    async function loadBatchModeStatus() {
+        try {
+            const response = await fetch('/api/incept-plus/batch-mode');
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('batch-mode-toggle').checked = data.batch_mode;
+            }
+        } catch (error) {
+            console.error('Failed to load batch mode status:', error);
+        }
+    }
+
+    async function toggleBatchMode(enabled) {
+        try {
+            const response = await fetch('/api/incept-plus/batch-mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+            const data = await response.json();
+            if (!data.success) {
+                alert('Error toggling batch mode');
+                document.getElementById('batch-mode-toggle').checked = !enabled;
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            document.getElementById('batch-mode-toggle').checked = !enabled;
+        }
+    }
+
+    async function loadGitStatus() {
+        const statusDiv = document.getElementById('git-status');
+        const pushBtn = document.getElementById('push-all-btn');
+
+        try {
+            const response = await fetch('/api/incept-plus/git-status');
+            const data = await response.json();
+
+            if (data.success) {
+                if (data.unpushed_count > 0) {
+                    statusDiv.innerHTML = `<span style="color: #f59e0b;">${data.unpushed_count} unpushed commit${data.unpushed_count > 1 ? 's' : ''}</span>`;
+                    pushBtn.style.display = 'inline-block';
+                    pushBtn.textContent = `Push All (${data.unpushed_count})`;
+                } else if (data.has_uncommitted_changes) {
+                    statusDiv.innerHTML = '<span style="color: #3b82f6;">Uncommitted changes</span>';
+                    pushBtn.style.display = 'none';
+                } else {
+                    statusDiv.innerHTML = '<span style="color: #22c55e;">All changes pushed</span>';
+                    pushBtn.style.display = 'none';
+                }
+            } else {
+                statusDiv.innerHTML = '<span style="color: #ef4444;">Git status error</span>';
+                pushBtn.style.display = 'none';
+            }
+        } catch (error) {
+            statusDiv.innerHTML = '<span style="color: var(--text-muted);">Could not load git status</span>';
+            pushBtn.style.display = 'none';
+        }
+    }
+
+    async function pushAllCommits() {
+        const pushBtn = document.getElementById('push-all-btn');
+        const statusDiv = document.getElementById('git-status');
+
+        if (!confirm('Push all accumulated commits to remote?')) return;
+
+        pushBtn.disabled = true;
+        pushBtn.textContent = 'Pushing...';
+        statusDiv.innerHTML = '<span style="color: var(--text-muted);">Pushing to remote...</span>';
+
+        try {
+            const response = await fetch('/api/incept-plus/push-all', {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                statusDiv.innerHTML = `<span style="color: #22c55e;">${data.message}</span>`;
+                pushBtn.style.display = 'none';
+                // Reload git status after a short delay
+                setTimeout(loadGitStatus, 2000);
+            } else {
+                alert('Push failed: ' + data.error);
+                loadGitStatus();
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            loadGitStatus();
+        } finally {
+            pushBtn.disabled = false;
+        }
+    }
+
+    // Load push settings and git status on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPushQueueAtEndStatus();
+        loadBatchModeStatus();
+        loadGitStatus();
+        // Refresh git status every 30 seconds
+        setInterval(loadGitStatus, 30000);
+    });
+</script>
+{% endblock %}

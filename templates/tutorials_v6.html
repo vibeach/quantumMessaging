@@ -1,0 +1,217 @@
+{% extends "base_v6.html" %}
+
+{% block title %}Home Assistant Tutorials{% endblock %}
+
+{% block content %}
+<!-- Top bar -->
+<div class="top-bar card">
+    <div class="top-actions">
+        <a href="{{ url_for('messages') }}" class="back-btn">Back</a>
+        <div class="search-form">
+            <input type="text" placeholder="Search tutorials..." autocomplete="off">
+            <button type="button">Search</button>
+        </div>
+    </div>
+    <div class="refresh-info">
+        <span class="refresh-time">Last updated: {{ last_refresh }}</span>
+        <a href="?page=1" onclick="location.reload();return false;" class="refresh-btn">Refresh</a>
+    </div>
+</div>
+
+<!-- Tutorial content -->
+<div class="messages-container card">
+    <div class="log-stream">
+        <div class="hour-separator">2025-12-26 14:00 - Getting Started</div>
+        <span class="log-entry from-me">[14:05]<span class="time-ago">(2h)</span> Welcome to the Home Assistant automation tutorials! This guide will help you set up powerful automations for your smart home.</span>
+        <span class="log-entry from-them">[14:08]<span class="time-ago">(2h)</span> First, make sure you have Home Assistant installed and running. You can install it on a Raspberry Pi, NUC, or as a VM.</span>
+        <span class="log-entry from-me">[14:12]<span class="time-ago">(2h)</span> The configuration.yaml file is the heart of Home Assistant. Let's start by understanding its structure.</span>
+        <span class="log-entry from-them">[14:15]<span class="time-ago">(2h)</span> Basic YAML syntax: use spaces (not tabs) for indentation. Each level uses 2 spaces. Lists start with a dash (-).</span>
+
+        <div class="hour-separator">2025-12-26 13:00 - Automation Basics</div>
+        <span class="log-entry from-me">[13:02]<span class="time-ago">(3h)</span> Automations in Home Assistant consist of three parts: triggers, conditions, and actions.</span>
+        <span class="log-entry from-them">[13:05]<span class="time-ago">(3h)</span> Triggers: What starts the automation? Examples: time, state change, device trigger, sun position.</span>
+        <span class="log-entry from-me">[13:10]<span class="time-ago">(3h)</span> Conditions: Optional checks before running. Only run if: someone is home, it's dark, AC is off, etc.</span>
+        <span class="log-entry from-them">[13:15]<span class="time-ago">(3h)</span> Actions: What happens when triggered. Turn on lights, send notification, call a script, etc.</span>
+        <span class="log-entry from-me">[13:20]<span class="time-ago">(3h)</span> Example automation: Turn on porch light at sunset if someone is home.</span>
+        <span class="log-entry from-them">[13:25]<span class="time-ago">(3h)</span> automation: alias: "Porch Light at Sunset" trigger: platform: sun event: sunset condition: condition: state entity_id: group.family state: "home" action: service: light.turn_on target: entity_id: light.porch</span>
+
+        <div class="hour-separator">2025-12-26 12:00 - Motion-Activated Lights</div>
+        <span class="log-entry from-me">[12:05]<span class="time-ago">(4h)</span> Motion sensors are great for hands-free lighting control. Let's set up a motion-activated bathroom light.</span>
+        <span class="log-entry from-them">[12:10]<span class="time-ago">(4h)</span> First, add your motion sensor to Home Assistant. Most Zigbee/Z-Wave sensors auto-discover.</span>
+        <span class="log-entry from-me">[12:15]<span class="time-ago">(4h)</span> Create two automations: one to turn ON when motion detected, one to turn OFF after no motion.</span>
+        <span class="log-entry from-them">[12:20]<span class="time-ago">(4h)</span> Tip: Use a timer or "for" condition to avoid flickering lights when motion stops briefly.</span>
+        <span class="log-entry from-me">[12:25]<span class="time-ago">(4h)</span> Advanced: Use input_number to let users adjust the timeout from the dashboard.</span>
+
+        <div class="hour-separator">2025-12-26 11:00 - Climate Control</div>
+        <span class="log-entry from-me">[11:02]<span class="time-ago">(5h)</span> Smart thermostats can save energy by adjusting based on presence and schedules.</span>
+        <span class="log-entry from-them">[11:08]<span class="time-ago">(5h)</span> Generic thermostat: Create a virtual thermostat from a temp sensor + switch (like a space heater).</span>
+        <span class="log-entry from-me">[11:15]<span class="time-ago">(5h)</span> climate: - platform: generic_thermostat name: Office Heater heater: switch.space_heater target_sensor: sensor.office_temp</span>
+        <span class="log-entry from-them">[11:22]<span class="time-ago">(5h)</span> Away mode: Lower temperature when everyone leaves, restore when someone arrives.</span>
+        <span class="log-entry from-me">[11:30]<span class="time-ago">(5h)</span> Pro tip: Use device_tracker or person entities to track who's home accurately.</span>
+
+        <div class="hour-separator">2025-12-26 10:00 - Notifications</div>
+        <span class="log-entry from-me">[10:05]<span class="time-ago">(6h)</span> Notifications keep you informed about your smart home. Use mobile app, Telegram, email, or TTS.</span>
+        <span class="log-entry from-them">[10:12]<span class="time-ago">(6h)</span> Mobile app notifications: service: notify.mobile_app_your_phone data: message: "Motion detected!" title: "Security Alert"</span>
+        <span class="log-entry from-me">[10:20]<span class="time-ago">(6h)</span> Actionable notifications: Add buttons to notifications that trigger actions when tapped.</span>
+        <span class="log-entry from-them">[10:28]<span class="time-ago">(6h)</span> Rate limiting: Use conditions to prevent notification spam. Example: only notify once per hour.</span>
+        <span class="log-entry from-me">[10:35]<span class="time-ago">(6h)</span> Telegram bot: Great for two-way communication. Send commands to HA via Telegram!</span>
+
+        <div class="hour-separator">2025-12-26 09:00 - Advanced Topics</div>
+        <span class="log-entry from-me">[09:05]<span class="time-ago">(7h)</span> Templates: Use Jinja2 templates to create dynamic messages and conditions.</span>
+        <span class="log-entry from-them">[09:12]<span class="time-ago">(7h)</span> Example: "The temperature is {% raw %}{{ states('sensor.temp') }}{% endraw %} degrees"</span>
+        <span class="log-entry from-me">[09:20]<span class="time-ago">(7h)</span> Scripts: Reusable sequences of actions. Call them from automations or manually.</span>
+        <span class="log-entry from-them">[09:28]<span class="time-ago">(7h)</span> Scenes: Save the state of multiple entities and restore them with one action.</span>
+        <span class="log-entry from-me">[09:35]<span class="time-ago">(7h)</span> Blueprints: Share and import automation templates. Check the HA forum for community blueprints!</span>
+        <span class="log-entry from-them">[09:45]<span class="time-ago">(7h)</span> Node-RED: Visual automation tool that integrates with HA for complex flows.</span>
+    </div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination">
+    <span class="page-num">Page 1</span>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .top-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .back-btn {
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .back-btn:hover {
+        background: #4b5563;
+    }
+
+    .search-form {
+        display: flex;
+        gap: 8px;
+        flex: 1;
+    }
+
+    .search-form input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+    }
+
+    .search-form input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .search-form button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .search-form button:hover {
+        background: #1d4ed8;
+    }
+
+    .refresh-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .refresh-time {
+        flex: 1;
+    }
+
+    .refresh-btn {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .messages-container {
+        padding: 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        line-height: 1.8;
+    }
+
+    .log-stream {
+        word-wrap: break-word;
+    }
+
+    .hour-separator {
+        display: block;
+        margin: 16px 0 10px 0;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+        font-weight: 500;
+        color: var(--text);
+        font-size: 11px;
+        letter-spacing: 0.5px;
+    }
+
+    .hour-separator:first-child {
+        margin-top: 0;
+    }
+
+    .log-entry {
+        display: inline;
+    }
+
+    .log-entry::after {
+        content: " ";
+    }
+
+    .from-me {
+        color: #2563eb;
+    }
+
+    .from-them {
+        color: #1f1f1f;
+    }
+
+    .time-ago {
+        color: #6b7280;
+        font-size: 10px;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        padding: 16px;
+        font-size: 13px;
+    }
+
+    .page-num {
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
