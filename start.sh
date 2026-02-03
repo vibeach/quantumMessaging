@@ -5,6 +5,14 @@
 # Create data directory if needed
 mkdir -p ${DATA_DIR:-/data}/media
 
+# Debug: Check environment variables (length only, not values)
+echo "=== Environment Check ==="
+echo "SESSION_STRING length: ${#SESSION_STRING}"
+echo "TELEGRAM_API_ID set: $([ -n \"$TELEGRAM_API_ID\" ] && echo 'yes' || echo 'NO')"
+echo "TELEGRAM_API_HASH set: $([ -n \"$TELEGRAM_API_HASH\" ] && echo 'yes' || echo 'NO')"
+echo "TARGET_USER set: $([ -n \"$TARGET_USER\" ] && echo 'yes' || echo 'NO')"
+echo "========================="
+
 # Start monitor in background with output visible
 echo "Starting Telegram monitor..."
 python -u monitor.py 2>&1 &
