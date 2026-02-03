@@ -1,4 +1,5 @@
 services:
+  # Original single-user dashboard (your existing setup)
   - type: web
     name: telegram-monitor
     runtime: python
@@ -35,3 +36,23 @@ services:
       name: telegram-data
       mountPath: /data
       sizeGB: 1  # 1GB should be plenty for SQLite + media
+
+  # NEW: Multi-user dashboard (supports multiple users)
+  - type: web
+    name: quantum-multi
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn dashboard_multi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /login
+    envVars:
+      - key: QM_COORDINATOR_PASSWORD
+        sync: false  # Set in Render dashboard - required for encryption
+      - key: SECRET_KEY
+        generateValue: true
+      - key: RENDER
+        value: "true"
+    disk:
+      name: quantum-multi-data
+      mountPath: /data
+      sizeGB: 1

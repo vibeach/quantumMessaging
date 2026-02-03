@@ -1,0 +1,315 @@
+{% extends "multi/base.html" %}
+
+{% block title %}Setup - Quantum Messaging{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 32px;
+        padding: 0 20px;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+    }
+
+    .step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 60%;
+        width: 80%;
+        height: 2px;
+        background: var(--border);
+    }
+
+    .step.active:not(:last-child)::after,
+    .step.done:not(:last-child)::after {
+        background: var(--accent);
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--border);
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .step.active .step-number,
+    .step.done .step-number {
+        background: var(--accent);
+        color: white;
+    }
+
+    .step-label {
+        font-size: 0.75rem;
+        margin-top: 8px;
+        color: var(--text-muted);
+    }
+
+    .step.active .step-label {
+        color: var(--accent);
+        font-weight: 500;
+    }
+
+    .instructions {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .instructions h3 {
+        font-size: 1rem;
+        margin-bottom: 12px;
+    }
+
+    .instructions ol {
+        margin-left: 20px;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .instructions li {
+        margin-bottom: 8px;
+    }
+
+    .instructions code {
+        background: var(--card-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+    }
+
+    .instructions a {
+        color: var(--accent);
+    }
+
+    .hint {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .btn-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .btn-row .btn {
+        flex: 1;
+    }
+
+    .verification-code {
+        text-align: center;
+    }
+
+    .verification-code input {
+        font-size: 2rem;
+        text-align: center;
+        letter-spacing: 8px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+
+    .loading.show {
+        display: block;
+    }
+
+    .spinner {
+        border: 3px solid var(--border);
+        border-top: 3px solid var(--accent);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 12px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Connect Telegram</h1>
+    <p class="subtitle">Step {{ step }} of 4</p>
+
+    <div class="steps">
+        <div class="step {% if step >= 1 %}active{% endif %} {% if step > 1 %}done{% endif %}">
+            <div class="step-number">1</div>
+            <div class="step-label">API Keys</div>
+        </div>
+        <div class="step {% if step >= 2 %}active{% endif %} {% if step > 2 %}done{% endif %}">
+            <div class="step-number">2</div>
+            <div class="step-label">Credentials</div>
+        </div>
+        <div class="step {% if step >= 3 %}active{% endif %} {% if step > 3 %}done{% endif %}">
+            <div class="step-number">3</div>
+            <div class="step-label">Verify</div>
+        </div>
+        <div class="step {% if step >= 4 %}active{% endif %}">
+            <div class="step-number">4</div>
+            <div class="step-label">Target</div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if step == 1 %}
+    <!-- Step 1: Instructions -->
+    <div class="instructions">
+        <h3>Get your Telegram API credentials</h3>
+        <ol>
+            <li>Open <a href="https://my.telegram.org" target="_blank">my.telegram.org</a> in your browser</li>
+            <li>Log in with your phone number (include country code, e.g., +1234567890)</li>
+            <li>Click <strong>"API development tools"</strong></li>
+            <li>If you don't have an app yet, create one:
+                <ul style="margin-top: 8px; list-style: disc;">
+                    <li>App title: anything (e.g., "MyApp")</li>
+                    <li>Short name: anything (e.g., "myapp")</li>
+                    <li>Platform: Desktop</li>
+                    <li>Description: leave empty</li>
+                </ul>
+            </li>
+            <li>Click <strong>"Create application"</strong></li>
+            <li>You'll see your <code>api_id</code> and <code>api_hash</code></li>
+        </ol>
+    </div>
+
+    <form method="post" action="/setup/2">
+        <button type="submit" class="btn">I have my API credentials</button>
+    </form>
+
+    {% elif step == 2 %}
+    <!-- Step 2: Enter credentials -->
+    <form method="post" action="/setup/3">
+        <div class="form-group">
+            <label for="api_id">API ID</label>
+            <input type="text" id="api_id" name="api_id" required placeholder="e.g., 12345678"
+                   pattern="[0-9]+" value="{{ api_id or '' }}">
+            <div class="hint">Numbers only (from my.telegram.org)</div>
+        </div>
+
+        <div class="form-group">
+            <label for="api_hash">API Hash</label>
+            <input type="text" id="api_hash" name="api_hash" required placeholder="e.g., a1b2c3d4e5f6..."
+                   value="{{ api_hash or '' }}">
+            <div class="hint">32-character string (from my.telegram.org)</div>
+        </div>
+
+        <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" required placeholder="+1234567890"
+                   value="{{ phone or '' }}">
+            <div class="hint">Include country code (e.g., +1 for US)</div>
+        </div>
+
+        <div class="btn-row">
+            <a href="/setup" class="btn btn-secondary">Back</a>
+            <button type="submit" class="btn">Continue</button>
+        </div>
+    </form>
+
+    {% elif step == 3 %}
+    <!-- Step 3: Verification code -->
+    <p style="text-align: center; margin-bottom: 20px; color: var(--text-muted);">
+        We sent a verification code to your Telegram app.<br>
+        Enter it below.
+    </p>
+
+    <form method="post" action="/setup/4" id="verify-form">
+        <div class="form-group verification-code">
+            <label for="code">Verification Code</label>
+            <input type="text" id="code" name="code" required maxlength="5"
+                   pattern="[0-9]+" autocomplete="one-time-code" autofocus>
+        </div>
+
+        <div class="btn-row">
+            <a href="/setup/2" class="btn btn-secondary">Back</a>
+            <button type="submit" class="btn">Verify</button>
+        </div>
+    </form>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Verifying...</p>
+    </div>
+
+    {% elif step == 4 %}
+    <!-- Step 4: Target user -->
+    <p style="text-align: center; margin-bottom: 20px; color: var(--text-muted);">
+        Who do you want to message with?
+    </p>
+
+    <form method="post" action="/setup/complete">
+        <div class="form-group">
+            <label for="target_username">Their Telegram Username</label>
+            <input type="text" id="target_username" name="target_username" required
+                   placeholder="@username" value="{{ target_username or '' }}">
+            <div class="hint">Include the @ symbol</div>
+        </div>
+
+        <div class="form-group">
+            <label for="target_name">Display Name (optional)</label>
+            <input type="text" id="target_name" name="target_name"
+                   placeholder="e.g., Elena" value="{{ target_name or '' }}">
+            <div class="hint">How you want their name to appear</div>
+        </div>
+
+        <button type="submit" class="btn">Complete Setup</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-format phone number
+    const phoneInput = document.getElementById('phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/[^\d+]/g, '');
+            if (!value.startsWith('+') && value.length > 0) {
+                value = '+' + value;
+            }
+            e.target.value = value;
+        });
+    }
+
+    // Show loading on verify submit
+    const verifyForm = document.getElementById('verify-form');
+    if (verifyForm) {
+        verifyForm.addEventListener('submit', function() {
+            document.getElementById('loading').classList.add('show');
+            verifyForm.style.display = 'none';
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,295 @@
+{% extends "multi/base.html" %}
+
+{% block title %}Messages - Quantum Messaging{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .card {
+        margin-top: 16px;
+        padding: 0;
+    }
+
+    .top-bar {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .top-bar .btn-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .top-bar .btn-icon:hover {
+        background: var(--bg);
+    }
+
+    .refresh-time {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-left: auto;
+    }
+
+    .send-form {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        margin-top: 8px;
+    }
+
+    .send-form textarea {
+        flex: 1;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        resize: none;
+        min-height: 40px;
+        max-height: 120px;
+        background: var(--card-bg);
+        color: var(--text);
+    }
+
+    .send-form textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .send-form button {
+        padding: 10px 20px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .send-form button:hover {
+        background: var(--accent-hover);
+    }
+
+    .messages-container {
+        padding: 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .message {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .message:last-child {
+        border-bottom: none;
+    }
+
+    .message-time {
+        color: var(--text-muted);
+        font-size: 10px;
+    }
+
+    .message-sender {
+        font-weight: 600;
+        margin-right: 8px;
+    }
+
+    .message-sender.me {
+        color: var(--accent);
+    }
+
+    .message-sender.them {
+        color: #10b981;
+    }
+
+    .message-text {
+        margin-top: 4px;
+        word-break: break-word;
+    }
+
+    .message-meta {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+        font-size: 10px;
+        color: var(--text-muted);
+    }
+
+    .tick {
+        color: #10b981;
+    }
+
+    .unseen {
+        color: var(--accent);
+    }
+
+    .empty {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-muted);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        padding: 16px;
+        border-top: 1px solid var(--border);
+    }
+
+    .pagination a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .stats-bar {
+        padding: 8px 16px;
+        background: var(--bg);
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: space-between;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="top-bar">
+        <button class="btn-icon" onclick="location.reload()" title="Refresh">↻</button>
+        <span class="refresh-time">{{ last_refresh }}</span>
+
+        <form class="send-form" id="send-form" onsubmit="return sendMessage(event)">
+            <textarea name="text" placeholder="Type a message..." id="msg-input" rows="1"></textarea>
+            <button type="submit" id="send-btn">Send</button>
+        </form>
+    </div>
+
+    <div class="stats-bar">
+        <span>{{ total }} messages</span>
+        <span>Page {{ page }}</span>
+    </div>
+
+    <div class="messages-container">
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="message" data-id="{{ msg.message_id }}">
+                <div class="message-header">
+                    <span class="message-time">[{{ msg.timestamp[11:16] if msg.timestamp else '' }}]</span>
+                    <span class="message-sender {% if msg.sender_name == my_name %}me{% else %}them{% endif %}">
+                        {{ msg.sender_name }}
+                    </span>
+                </div>
+                <div class="message-text">{{ msg.text }}</div>
+                <div class="message-meta">
+                    {% if msg.media_type %}
+                    <span>[{{ msg.media_type }}]</span>
+                    {% endif %}
+                    {% if msg.sender_name == my_name %}
+                        {% if msg.seen_by_target %}
+                        <span class="tick">seen</span>
+                        {% else %}
+                        <span class="unseen">sent</span>
+                        {% endif %}
+                    {% else %}
+                        {% if msg.marked_read %}
+                        <span class="tick">read</span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty">
+                <p>No messages yet</p>
+                <p style="font-size: 0.8rem; margin-top: 8px;">Send a message to start the conversation</p>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="?page={{ page - 1 }}">&larr; Newer</a>
+        {% endif %}
+        {% if has_more %}
+        <a href="?page={{ page + 1 }}">Older &rarr;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-resize textarea
+    const textarea = document.getElementById('msg-input');
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    // Submit on Enter (Shift+Enter for newline)
+    textarea.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage(e);
+        }
+    });
+
+    // Send message
+    function sendMessage(e) {
+        if (e) e.preventDefault();
+
+        const text = textarea.value.trim();
+        if (!text) return false;
+
+        const btn = document.getElementById('send-btn');
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        fetch('/api/send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                textarea.value = '';
+                textarea.style.height = 'auto';
+                btn.textContent = 'Sent!';
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                alert('Failed: ' + (data.error || 'Unknown error'));
+                btn.textContent = 'Send';
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            alert('Error: ' + err);
+            btn.textContent = 'Send';
+            btn.disabled = false;
+        });
+
+        return false;
+    }
+
+    // Auto-refresh every 30 seconds
+    setTimeout(() => location.reload(), 30000);
+</script>
+{% endblock %}

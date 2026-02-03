@@ -1,0 +1,44 @@
+{% extends "multi/base.html" %}
+
+{% block title %}Register - Quantum Messaging{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Create Account</h1>
+    <p class="subtitle">Join Quantum Messaging</p>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autocomplete="username"
+                   pattern="[a-zA-Z0-9_]+" minlength="3" autofocus
+                   placeholder="e.g., john_doe">
+            <small style="color: var(--text-muted); font-size: 0.75rem;">
+                Letters, numbers, and underscores only
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required
+                   autocomplete="new-password" minlength="4">
+        </div>
+
+        <div class="form-group">
+            <label for="confirm">Confirm Password</label>
+            <input type="password" id="confirm" name="confirm" required
+                   autocomplete="new-password">
+        </div>
+
+        <button type="submit" class="btn">Create Account</button>
+    </form>
+
+    <div class="link-row">
+        Already have an account? <a href="/login">Sign in</a>
+    </div>
+</div>
+{% endblock %}
