@@ -190,7 +190,6 @@
                 <a href="{{ url_for('control_room_summary') }}" class="{% if request.endpoint == 'control_room_summary' %}active{% endif %}">CR</a>
                 <a href="{{ url_for('settings_page') }}" class="{% if request.endpoint == 'settings_page' %}active{% endif %}">Set</a>
                 <a href="{{ url_for('config_editor') }}" class="{% if request.endpoint == 'config_editor' %}active{% endif %}">Cfg</a>
-                <a href="{{ url_for('render_status') }}" class="{% if request.endpoint == 'render_status' %}active{% endif %}">Rnd</a>
                 <span class="version-switch">
                     <a href="/v3/messages" class="{% if request.endpoint == 'messages_v3' %}active{% endif %}">v3</a>
                     <a href="/v5/messages" class="{% if request.endpoint == 'messages_v5' %}active{% endif %}">v5</a>
