@@ -505,12 +505,11 @@ def save_online_status(user_id, username, status, last_seen=None):
         conn.commit()
         return cursor.lastrowid
 
-def get_messages(chat_id=None, limit=100, offset=0, include_deleted=False, direction=None):
+def get_messages(chat_id=None, limit=100, offset=0, include_deleted=True, direction=None):
     """Get messages, optionally filtered by chat and direction.
 
     Args:
         direction: 'incoming' for messages from her, 'outgoing' for messages from me
-    Note: Deleted messages are excluded by default.
     """
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -1133,9 +1132,19 @@ def export_all_data():
         cursor.execute("SELECT * FROM online_status ORDER BY timestamp")
         online_status = [dict(row) for row in cursor.fetchall()]
 
+        # Export claude_requests (lab reports)
+        cursor.execute("SELECT * FROM claude_requests ORDER BY created_at")
+        claude_requests = [dict(row) for row in cursor.fetchall()]
+
+        # Export claude_logs
+        cursor.execute("SELECT * FROM claude_logs ORDER BY timestamp")
+        claude_logs = [dict(row) for row in cursor.fetchall()]
+
         return {
             'messages': messages,
             'online_status': online_status,
+            'claude_requests': claude_requests,
+            'claude_logs': claude_logs,
             'exported_at': utc_now().isoformat(),
             'stats': get_sync_stats()
         }
@@ -1223,12 +1232,69 @@ def import_and_merge_data(data):
                 ))
                 status_added += 1
 
+        # Import claude_requests (lab reports) - dedupe by original id stored in import
+        claude_requests_added = 0
+        id_mapping = {}  # Map old IDs to new IDs for parent_id references
+        for req in data.get('claude_requests', []):
+            old_id = req.get('id')
+            # Check if already imported (by text + created_at)
+            cursor.execute(
+                "SELECT id FROM claude_requests WHERE text = ? AND created_at = ?",
+                (req.get('text'), req.get('created_at'))
+            )
+            existing = cursor.fetchone()
+            if existing:
+                id_mapping[old_id] = existing['id']
+            else:
+                # Map parent_id if it was already imported
+                parent_id = req.get('parent_id')
+                if parent_id and parent_id in id_mapping:
+                    parent_id = id_mapping[parent_id]
+                cursor.execute("""
+                    INSERT INTO claude_requests (
+                        text, status, response, created_at, completed_at,
+                        mode, model, parent_id, auto_push, interrupted,
+                        interrupted_at, restart_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    req.get('text'), req.get('status'), req.get('response'),
+                    req.get('created_at'), req.get('completed_at'),
+                    req.get('mode', 'api'), req.get('model'),
+                    parent_id, req.get('auto_push', 1),
+                    req.get('interrupted', 0), req.get('interrupted_at'),
+                    req.get('restart_count', 0)
+                ))
+                id_mapping[old_id] = cursor.lastrowid
+                claude_requests_added += 1
+
+        # Import claude_logs
+        claude_logs_added = 0
+        for log in data.get('claude_logs', []):
+            old_request_id = log.get('request_id')
+            new_request_id = id_mapping.get(old_request_id, old_request_id)
+            # Check if already imported
+            cursor.execute(
+                "SELECT id FROM claude_logs WHERE request_id = ? AND timestamp = ? AND message = ?",
+                (new_request_id, log.get('timestamp'), log.get('message'))
+            )
+            if not cursor.fetchone():
+                cursor.execute("""
+                    INSERT INTO claude_logs (request_id, log_type, message, timestamp)
+                    VALUES (?, ?, ?, ?)
+                """, (
+                    new_request_id, log.get('log_type', 'info'),
+                    log.get('message'), log.get('timestamp')
+                ))
+                claude_logs_added += 1
+
         conn.commit()
 
         return {
             'messages_added': messages_added,
             'messages_updated': messages_updated,
-            'status_added': status_added
+            'status_added': status_added,
+            'claude_requests_added': claude_requests_added,
+            'claude_logs_added': claude_logs_added
         }
 
 
