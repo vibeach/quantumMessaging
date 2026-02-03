@@ -34,7 +34,6 @@
         <button class="media-btn-nice" id="notif-btn" onclick="enableNotifications()" title="Enable notifications">🔔</button>
         <button class="media-btn-nice" id="badge-btn" onclick="toggleBadge()" title="Toggle badge count">🔴</button>
         <span class="refresh-time">{{ last_refresh }}</span>
-        <button class="mark-all-btn" onclick="markAllRead()" title="Mark all read">✓✓</button>
     </div>
     <div class="top-actions">
         <form class="send-form" id="send-form" onsubmit="return sendMessage(event)">
@@ -120,7 +119,6 @@
         <button class="media-btn-nice" id="notif-btn-fake" onclick="enableNotifications()" title="Enable notifications">🔔</button>
         <button class="media-btn-nice" id="badge-btn-fake" onclick="toggleBadge()" title="Toggle badge count">🔴</button>
         <span class="refresh-time">{{ last_refresh }}</span>
-        <button class="mark-all-btn" title="Sync all">✓✓</button>
     </div>
     <div class="top-actions">
         <div class="send-form">
@@ -188,9 +186,6 @@
     .refresh-btn-nice { background: var(--accent); color: white; border: none; width: 26px; height: 26px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
     .refresh-btn-nice:hover { transform: rotate(180deg); background: #1d4ed8; }
     .refresh-time { flex: 1; }
-    .mark-all-btn { background: #f59e0b; color: white; border: none; width: 26px; height: 26px; border-radius: 50%; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .mark-all-btn:hover { background: #d97706; }
-    .mark-all-btn:disabled { background: #9ca3af; }
     .text-size-wrapper { position: relative; display: inline-block; }
     .text-size-btn { background: var(--bg); border: 1px solid var(--border); width: 26px; height: 26px; border-radius: 50%; font-size: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
     .text-size-btn:hover { background: var(--border); }
@@ -335,7 +330,6 @@
         .media-btn-xs { padding: 1px 3px; font-size: 8px; }
         .media-btn-nice { width: 24px; height: 24px; font-size: 10px; }
         .refresh-btn-nice { width: 24px; height: 24px; font-size: 12px; }
-        .mark-all-btn { width: 24px; height: 24px; font-size: 9px; }
         .send-form textarea { min-height: 28px; }
         .send-form button { height: 28px; padding: 4px 10px; font-size: 11px; }
         .upload-modal { min-width: 280px; padding: 20px; }
@@ -1226,36 +1220,6 @@
                     triggerBadgeUpdate();
                 }
                 console.log('[Mark Read] Badge updated and service worker notified');
-            }
-        });
-    }
-
-    function markAllRead() {
-        const btn = document.querySelector('.mark-all-btn');
-        btn.disabled = true;
-        const originalText = btn.textContent;
-        btn.textContent = '...';
-        fetch('/api/mark-all-read', { method: 'POST', headers: {'Content-Type': 'application/json'} })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                btn.textContent = '✓';
-                document.querySelectorAll('.log-entry.unread').forEach(entry => {
-                    entry.classList.remove('unread');
-                    const single = entry.querySelector('.tick.single');
-                    if (single) { single.className = 'tick double'; single.textContent = '✓✓'; }
-                    const readBtn = entry.querySelector('.mark-read-btn');
-                    if (readBtn) readBtn.remove();
-                });
-                // Clear app badge when all marked read
-                if ('clearAppBadge' in navigator) {
-                    navigator.clearAppBadge().catch(() => {});
-                }
-                // Also trigger service worker to update badge
-                if (typeof triggerBadgeUpdate === 'function') {
-                    triggerBadgeUpdate();
-                }
-                console.log('[Mark All Read] Badge cleared and service worker notified');
             }
         });
     }
