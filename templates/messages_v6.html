@@ -83,7 +83,7 @@
             {% set is_from_target = (msg.sender_name != my_name) %}
             {% set is_unread = is_from_target and (msg.marked_read is none or msg.marked_read == 0) %}
             {% set is_unseen = (not is_from_target) and (msg.seen_by_target is none or msg.seen_by_target == 0) %}
-            <span class="log-entry {% if is_unread %}unread{% endif %} {% if is_unseen %}unseen{% endif %} {% if is_lab_entry %}lab-entry{% endif %} {{ 'from-me' if msg.sender_name == my_name else 'from-them' }}" data-ts="{{ msg.timestamp }}" data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}" data-read-at="{{ msg.marked_read_at or '' }}" data-seen-at="{{ msg.seen_by_target_at or '' }}" data-text="{{ msg.text[:50] | e }}"><span class="msg-time">[{{ msg.timestamp[11:16] if msg.timestamp and msg.timestamp|length > 16 else msg.timestamp }}]</span><span class="time-ago"></span> {{ msg.text }}{% if msg.media_type %} <i>[{{ msg.media_type }}]</i>{% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript }}</span>{% endif %}{% endif %}{% if msg.reactions %}<span class="reactions" data-reactions="{{ msg.reactions }}"></span>{% endif %}{% if is_from_target and not is_lab_entry %}{% if is_unread %}<span class="tick single">✓</span><button class="mark-read-btn" onclick="markRead({{ msg.message_id }}, {{ msg.chat_id }}, this)">→✓✓</button>{% else %}<span class="tick double">✓✓</span><span class="read-time" data-read-at="{{ msg.marked_read_at or '' }}"></span>{% endif %}{% endif %}{% if not is_from_target and msg.seen_by_target and not is_lab_entry %}<span class="seen-time" data-seen-at="{{ msg.seen_by_target_at or '' }}"></span>{% endif %}{% if is_unseen and not is_lab_entry %}<span class="unseen-badge">○</span>{% endif %}{% if not is_lab_entry %}<button class="reply-btn" onclick="setReply({{ msg.message_id }}, '{{ msg.text[:30] | e | replace("'", "\\'") }}{% if msg.text|length > 30 %}...{% endif %}')" title="Reply">↩</button>{% endif %}</span>
+            <span class="log-entry {% if is_unread %}unread{% endif %} {% if is_unseen %}unseen{% endif %} {% if is_lab_entry %}lab-entry{% endif %} {{ 'from-me' if msg.sender_name == my_name else 'from-them' }}" data-ts="{{ msg.timestamp }}" data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}" data-text="{{ msg.text[:50] | e }}"><span class="msg-time">[{{ msg.timestamp[11:16] if msg.timestamp and msg.timestamp|length > 16 else msg.timestamp }}]</span> {{ msg.text }}{% if msg.media_type %} <i>[{{ msg.media_type }}]</i>{% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript }}</span>{% endif %}{% endif %}{% if msg.reactions %}<span class="reactions" data-reactions="{{ msg.reactions }}"></span>{% endif %}{% if is_from_target and not is_lab_entry %}{% if is_unread %}<span class="tick single">✓</span><button class="mark-read-btn" onclick="markRead({{ msg.message_id }}, {{ msg.chat_id }}, this)">→✓✓</button>{% else %}<span class="tick double">✓✓</span>{% endif %}{% endif %}{% if is_unseen and not is_lab_entry %}<span class="unseen-badge">○</span>{% endif %}{% if not is_lab_entry %}<button class="reply-btn" onclick="setReply({{ msg.message_id }}, '{{ msg.text[:30] | e | replace("'", "\\'") }}{% if msg.text|length > 30 %}...{% endif %}')" title="Reply">↩</button>{% endif %}</span>
         {% endfor %}
     </div>
     {% else %}
@@ -132,47 +132,47 @@
 <div class="messages-container card">
     <div class="log-stream">
         <div class="hour-separator">2025-12-26 14:00 - Getting Started</div>
-        <span class="log-entry from-me">[14:05]<span class="time-ago">(2h)</span> Welcome to the Home Assistant automation tutorials! This guide will help you set up powerful automations for your smart home.</span>
-        <span class="log-entry from-them">[14:08]<span class="time-ago">(2h)</span> First, make sure you have Home Assistant installed and running. You can install it on a Raspberry Pi, NUC, or as a VM.<span class="tick double">✓✓</span><span class="read-time">(r2h)</span></span>
-        <span class="log-entry from-me">[14:12]<span class="time-ago">(2h)</span> The configuration.yaml file is the heart of Home Assistant. Let's start by understanding its structure.</span>
-        <span class="log-entry from-them">[14:15]<span class="time-ago">(2h)</span> Basic YAML syntax: use spaces (not tabs) for indentation. Each level uses 2 spaces. Lists start with a dash (-).<span class="tick double">✓✓</span><span class="read-time">(r2h)</span></span>
+        <span class="log-entry from-me">[14:05] Welcome to the Home Assistant automation tutorials! This guide will help you set up powerful automations for your smart home.</span>
+        <span class="log-entry from-them">[14:08] First, make sure you have Home Assistant installed and running. You can install it on a Raspberry Pi, NUC, or as a VM.<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[14:12] The configuration.yaml file is the heart of Home Assistant. Let's start by understanding its structure.</span>
+        <span class="log-entry from-them">[14:15] Basic YAML syntax: use spaces (not tabs) for indentation. Each level uses 2 spaces. Lists start with a dash (-).<span class="tick double">✓✓</span></span>
 
         <div class="hour-separator">2025-12-26 13:00 - Automation Basics</div>
-        <span class="log-entry from-me">[13:02]<span class="time-ago">(3h)</span> Automations in Home Assistant consist of three parts: triggers, conditions, and actions.</span>
-        <span class="log-entry from-them">[13:05]<span class="time-ago">(3h)</span> Triggers: What starts the automation? Examples: time, state change, device trigger, sun position.<span class="tick double">✓✓</span><span class="read-time">(r3h)</span></span>
-        <span class="log-entry from-me">[13:10]<span class="time-ago">(3h)</span> Conditions: Optional checks before running. Only run if: someone is home, it's dark, AC is off, etc.</span>
-        <span class="log-entry from-them">[13:15]<span class="time-ago">(3h)</span> Actions: What happens when triggered. Turn on lights, send notification, call a script, etc.<span class="tick double">✓✓</span><span class="read-time">(r3h)</span></span>
-        <span class="log-entry from-me">[13:20]<span class="time-ago">(3h)</span> Example automation: Turn on porch light at sunset if someone is home.</span>
-        <span class="log-entry from-them">[13:25]<span class="time-ago">(3h)</span> automation: alias: "Porch Light at Sunset" trigger: platform: sun event: sunset condition: state entity_id: group.family state: "home" action: service: light.turn_on target: entity_id: light.porch<span class="tick double">✓✓</span><span class="read-time">(r3h)</span></span>
+        <span class="log-entry from-me">[13:02] Automations in Home Assistant consist of three parts: triggers, conditions, and actions.</span>
+        <span class="log-entry from-them">[13:05] Triggers: What starts the automation? Examples: time, state change, device trigger, sun position.<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[13:10] Conditions: Optional checks before running. Only run if: someone is home, it's dark, AC is off, etc.</span>
+        <span class="log-entry from-them">[13:15] Actions: What happens when triggered. Turn on lights, send notification, call a script, etc.<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[13:20] Example automation: Turn on porch light at sunset if someone is home.</span>
+        <span class="log-entry from-them">[13:25] automation: alias: "Porch Light at Sunset" trigger: platform: sun event: sunset condition: state entity_id: group.family state: "home" action: service: light.turn_on target: entity_id: light.porch<span class="tick double">✓✓</span></span>
 
         <div class="hour-separator">2025-12-26 12:00 - Motion-Activated Lights</div>
-        <span class="log-entry from-me">[12:05]<span class="time-ago">(4h)</span> Motion sensors are great for hands-free lighting control. Let's set up a motion-activated bathroom light.</span>
-        <span class="log-entry from-them">[12:10]<span class="time-ago">(4h)</span> First, add your motion sensor to Home Assistant. Most Zigbee/Z-Wave sensors auto-discover.<span class="tick double">✓✓</span><span class="read-time">(r4h)</span></span>
-        <span class="log-entry from-me">[12:15]<span class="time-ago">(4h)</span> Create two automations: one to turn ON when motion detected, one to turn OFF after no motion.</span>
-        <span class="log-entry from-them">[12:20]<span class="time-ago">(4h)</span> Tip: Use a timer or "for" condition to avoid flickering lights when motion stops briefly.<span class="tick double">✓✓</span><span class="read-time">(r4h)</span></span>
-        <span class="log-entry from-me">[12:25]<span class="time-ago">(4h)</span> Advanced: Use input_number to let users adjust the timeout from the dashboard.</span>
+        <span class="log-entry from-me">[12:05] Motion sensors are great for hands-free lighting control. Let's set up a motion-activated bathroom light.</span>
+        <span class="log-entry from-them">[12:10] First, add your motion sensor to Home Assistant. Most Zigbee/Z-Wave sensors auto-discover.<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[12:15] Create two automations: one to turn ON when motion detected, one to turn OFF after no motion.</span>
+        <span class="log-entry from-them">[12:20] Tip: Use a timer or "for" condition to avoid flickering lights when motion stops briefly.<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[12:25] Advanced: Use input_number to let users adjust the timeout from the dashboard.</span>
 
         <div class="hour-separator">2025-12-26 11:00 - Climate Control</div>
-        <span class="log-entry from-me">[11:02]<span class="time-ago">(5h)</span> Smart thermostats can save energy by adjusting based on presence and schedules.</span>
-        <span class="log-entry from-them">[11:08]<span class="time-ago">(5h)</span> Generic thermostat: Create a virtual thermostat from a temp sensor + switch (like a space heater).<span class="tick double">✓✓</span><span class="read-time">(r5h)</span></span>
-        <span class="log-entry from-me">[11:15]<span class="time-ago">(5h)</span> climate: - platform: generic_thermostat name: Office Heater heater: switch.space_heater target_sensor: sensor.office_temp</span>
-        <span class="log-entry from-them">[11:22]<span class="time-ago">(5h)</span> Away mode: Lower temperature when everyone leaves, restore when someone arrives.<span class="tick double">✓✓</span><span class="read-time">(r5h)</span></span>
-        <span class="log-entry from-me">[11:30]<span class="time-ago">(5h)</span> Pro tip: Use device_tracker or person entities to track who's home accurately.</span>
+        <span class="log-entry from-me">[11:02] Smart thermostats can save energy by adjusting based on presence and schedules.</span>
+        <span class="log-entry from-them">[11:08] Generic thermostat: Create a virtual thermostat from a temp sensor + switch (like a space heater).<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[11:15] climate: - platform: generic_thermostat name: Office Heater heater: switch.space_heater target_sensor: sensor.office_temp</span>
+        <span class="log-entry from-them">[11:22] Away mode: Lower temperature when everyone leaves, restore when someone arrives.<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[11:30] Pro tip: Use device_tracker or person entities to track who's home accurately.</span>
 
         <div class="hour-separator">2025-12-26 10:00 - Notifications</div>
-        <span class="log-entry from-me">[10:05]<span class="time-ago">(6h)</span> Notifications keep you informed about your smart home. Use mobile app, Telegram, email, or TTS.</span>
-        <span class="log-entry from-them">[10:12]<span class="time-ago">(6h)</span> Mobile app notifications: service: notify.mobile_app_your_phone data: message: "Motion detected!" title: "Security Alert"<span class="tick double">✓✓</span><span class="read-time">(r6h)</span></span>
-        <span class="log-entry from-me">[10:20]<span class="time-ago">(6h)</span> Actionable notifications: Add buttons to notifications that trigger actions when tapped.</span>
-        <span class="log-entry from-them">[10:28]<span class="time-ago">(6h)</span> Rate limiting: Use conditions to prevent notification spam. Example: only notify once per hour.<span class="tick double">✓✓</span><span class="read-time">(r6h)</span></span>
-        <span class="log-entry from-me">[10:35]<span class="time-ago">(6h)</span> Telegram bot: Great for two-way communication. Send commands to HA via Telegram!</span>
+        <span class="log-entry from-me">[10:05] Notifications keep you informed about your smart home. Use mobile app, Telegram, email, or TTS.</span>
+        <span class="log-entry from-them">[10:12] Mobile app notifications: service: notify.mobile_app_your_phone data: message: "Motion detected!" title: "Security Alert"<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[10:20] Actionable notifications: Add buttons to notifications that trigger actions when tapped.</span>
+        <span class="log-entry from-them">[10:28] Rate limiting: Use conditions to prevent notification spam. Example: only notify once per hour.<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[10:35] Telegram bot: Great for two-way communication. Send commands to HA via Telegram!</span>
 
         <div class="hour-separator">2025-12-26 09:00 - Advanced Topics</div>
-        <span class="log-entry from-me">[09:05]<span class="time-ago">(7h)</span> Templates: Use Jinja2 templates to create dynamic messages and conditions.</span>
-        <span class="log-entry from-them">[09:12]<span class="time-ago">(7h)</span> Example: "The temperature is {% raw %}{{ states('sensor.temp') }}{% endraw %} degrees"<span class="tick double">✓✓</span><span class="read-time">(r7h)</span></span>
-        <span class="log-entry from-me">[09:20]<span class="time-ago">(7h)</span> Scripts: Reusable sequences of actions. Call them from automations or manually.</span>
-        <span class="log-entry from-them">[09:28]<span class="time-ago">(7h)</span> Scenes: Save the state of multiple entities and restore them with one action.<span class="tick double">✓✓</span><span class="read-time">(r7h)</span></span>
-        <span class="log-entry from-me">[09:35]<span class="time-ago">(7h)</span> Blueprints: Share and import automation templates. Check the HA forum for community blueprints!</span>
-        <span class="log-entry from-them">[09:45]<span class="time-ago">(7h)</span> Node-RED: Visual automation tool that integrates with HA for complex flows.<span class="tick double">✓✓</span><span class="read-time">(r7h)</span></span>
+        <span class="log-entry from-me">[09:05] Templates: Use Jinja2 templates to create dynamic messages and conditions.</span>
+        <span class="log-entry from-them">[09:12] Example: "The temperature is {% raw %}{{ states('sensor.temp') }}{% endraw %} degrees"<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[09:20] Scripts: Reusable sequences of actions. Call them from automations or manually.</span>
+        <span class="log-entry from-them">[09:28] Scenes: Save the state of multiple entities and restore them with one action.<span class="tick double">✓✓</span></span>
+        <span class="log-entry from-me">[09:35] Blueprints: Share and import automation templates. Check the HA forum for community blueprints!</span>
+        <span class="log-entry from-them">[09:45] Node-RED: Visual automation tool that integrates with HA for complex flows.<span class="tick double">✓✓</span></span>
     </div>
 </div>
 <div class="pagination">
@@ -269,8 +269,6 @@
     [data-theme="dark"] .log-entry.lab-entry { color: #f472b6; }
 
     .msg-time { color: #9ca3af; font-size: 9px; }
-    .time-ago { color: #6b7280; font-size: 9px; }
-    .read-time, .seen-time { color: #10b981; font-size: 8px; margin-left: 1px; }
     .log-entry i { font-style: normal; color: var(--text-muted); font-size: 9px; }
     .reactions { background: #f3f4f6; padding: 0 2px; border-radius: 4px; font-size: 9px; margin-left: 1px; }
     .transcript { font-style: italic; font-size: 9px; margin-left: 4px; text-decoration: underline; text-decoration-color: #ec4899; text-underline-offset: 2px; }
@@ -1042,30 +1040,6 @@
         return new Date(ts);
     }
 
-    function formatTimeAgo(date) {
-        const now = new Date();
-        const diff = now - date;
-        const minutes = Math.floor(diff / 60000);
-        const hours = Math.floor(diff / 3600000);
-        const days = Math.floor(diff / 86400000);
-        if (minutes < 1) return '(now)';
-        if (minutes < 60) return `(${minutes}m)`;
-        if (hours < 24) return `(${hours}h)`;
-        return `(${days}d)`;
-    }
-
-    function formatReadTime(date, prefix) {
-        const now = new Date();
-        const diff = now - date;
-        const minutes = Math.floor(diff / 60000);
-        const hours = Math.floor(diff / 3600000);
-        const days = Math.floor(diff / 86400000);
-        if (minutes < 1) return `(${prefix}now)`;
-        if (minutes < 60) return `(${prefix}${minutes}m)`;
-        if (hours < 24) return `(${prefix}${hours}h)`;
-        return `(${prefix}${days}d)`;
-    }
-
     document.querySelectorAll('.log-entry').forEach(el => {
         const ts = el.dataset.ts;
         if (!ts) return;
@@ -1078,18 +1052,6 @@
         else if (hoursAgo < 24) ageClass = 'age-2';
         else ageClass = 'age-3';
         el.classList.add(ageClass);
-        const timeAgoEl = el.querySelector('.time-ago');
-        if (timeAgoEl) timeAgoEl.textContent = formatTimeAgo(msgDate);
-    });
-
-    document.querySelectorAll('.read-time').forEach(el => {
-        const readAt = el.dataset.readAt;
-        if (readAt) el.textContent = formatReadTime(parseUTC(readAt), 'r');
-    });
-
-    document.querySelectorAll('.seen-time').forEach(el => {
-        const seenAt = el.dataset.seenAt;
-        if (seenAt) el.textContent = formatReadTime(parseUTC(seenAt), 's');
     });
 
     document.querySelectorAll('.reactions').forEach(el => {

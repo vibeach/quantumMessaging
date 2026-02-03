@@ -92,8 +92,6 @@
                 <th class="col-time">Sent</th>
                 <th class="col-author">From</th>
                 <th class="col-text">Message</th>
-                <th class="col-viewtime">Viewed</th>
-                <th class="col-delta">Delta</th>
                 <th class="col-reacted">Reacted</th>
                 <th class="col-actions">Actions</th>
                 <th class="col-react">React</th>
@@ -103,7 +101,6 @@
         <tbody>
             {% for msg in messages %}
             {% set is_from_me = (msg.sender_name == my_name) %}
-            {% set is_viewed = (msg.seen_by_target == 1) if is_from_me else (msg.marked_read == 1) %}
             <tr class="msg-row {% if msg.deleted %}deleted{% endif %} {% if is_from_me %}from-me{% else %}from-them{% endif %}"
                 data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}">
                 <td class="col-time">
@@ -124,19 +121,6 @@
                     {% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript[:40] }}{% if msg.transcript|length > 40 %}...{% endif %}</span>{% endif %}
                     {{ msg.text[:60] }}{% if msg.text|length > 60 %}...{% endif %}
                     {% if msg.deleted %}<span class="deleted-badge">DEL</span>{% if msg.deleted_at %}<span class="deleted-time-display" data-deleted-at="{{ msg.deleted_at }}">[{{ msg.deleted_at[11:16] }}]</span><span class="deleted-ago"></span>{% endif %}{% endif %}
-                </td>
-                <td class="col-viewtime">
-                    {% if is_from_me and msg.seen_by_target_at %}
-                    <span class="view-time" data-ts="{{ msg.seen_by_target_at }}">{{ msg.seen_by_target_at[11:16] }}</span>
-                    {% elif not is_from_me and msg.marked_read_at %}
-                    <span class="view-time" data-ts="{{ msg.marked_read_at }}">{{ msg.marked_read_at[11:16] }}</span>
-                    {% else %}
-                    <span class="no-data">-</span>
-                    {% endif %}
-                </td>
-                <td class="col-delta">
-                    <span class="delta" data-sent="{{ msg.timestamp }}"
-                          data-viewed="{{ msg.seen_by_target_at if is_from_me else msg.marked_read_at }}">-</span>
                 </td>
                 <td class="col-reacted">
                     {% if msg.reactions %}
@@ -169,7 +153,7 @@
                 </td>
             </tr>
             {% else %}
-            <tr><td colspan="9" class="empty">No messages</td></tr>
+            <tr><td colspan="7" class="empty">No messages</td></tr>
             {% endfor %}
         </tbody>
     </table>
@@ -210,8 +194,6 @@
                 <th class="col-time">Time</th>
                 <th class="col-author">Type</th>
                 <th class="col-text">Command</th>
-                <th class="col-viewtime">Status</th>
-                <th class="col-delta">Duration</th>
             </tr>
         </thead>
         <tbody>
@@ -219,36 +201,26 @@
                 <td class="col-time"><span class="time-full">08:30</span><span class="time-date">2024-01-15</span></td>
                 <td class="col-author"><span class="author-indicator me">&nbsp;</span></td>
                 <td class="col-text">Turn on living room lights</td>
-                <td class="col-viewtime"><span class="view-time">08:30</span></td>
-                <td class="col-delta"><span class="delta fast">&lt;1m</span></td>
             </tr>
             <tr class="msg-row">
                 <td class="col-time"><span class="time-full">07:00</span><span class="time-date">2024-01-15</span></td>
                 <td class="col-author"><span class="author-indicator them">&nbsp;</span></td>
                 <td class="col-text">Morning routine started</td>
-                <td class="col-viewtime"><span class="view-time">07:00</span></td>
-                <td class="col-delta"><span class="delta fast">&lt;1m</span></td>
             </tr>
             <tr class="msg-row">
                 <td class="col-time"><span class="time-full">22:00</span><span class="time-date">2024-01-14</span></td>
                 <td class="col-author"><span class="author-indicator me">&nbsp;</span></td>
                 <td class="col-text">Set thermostat to 68F</td>
-                <td class="col-viewtime"><span class="view-time">22:00</span></td>
-                <td class="col-delta"><span class="delta fast">1m</span></td>
             </tr>
             <tr class="msg-row">
                 <td class="col-time"><span class="time-full">18:30</span><span class="time-date">2024-01-14</span></td>
                 <td class="col-author"><span class="author-indicator them">&nbsp;</span></td>
                 <td class="col-text">Motion detected: Front door</td>
-                <td class="col-viewtime"><span class="view-time">18:30</span></td>
-                <td class="col-delta"><span class="delta fast">&lt;1m</span></td>
             </tr>
             <tr class="msg-row">
                 <td class="col-time"><span class="time-full">17:45</span><span class="time-date">2024-01-14</span></td>
                 <td class="col-author"><span class="author-indicator me">&nbsp;</span></td>
                 <td class="col-text">Unlock front door</td>
-                <td class="col-viewtime"><span class="view-time">17:45</span></td>
-                <td class="col-delta"><span class="delta fast">2m</span></td>
             </tr>
         </tbody>
     </table>
@@ -774,39 +746,8 @@
         margin-left: 2px;
     }
 
-    .col-viewtime {
-        width: 70px;
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    .view-time {
-        color: #10b981;
-    }
-
     .no-data {
         color: var(--text-muted);
-    }
-
-    .col-delta {
-        width: 60px;
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    .delta {
-        color: var(--text-muted);
-        font-size: 0.75rem;
-    }
-
-    .delta.fast {
-        color: #10b981;
-    }
-
-    .delta.slow {
-        color: #f59e0b;
-    }
-
-    .delta.very-slow {
-        color: #ef4444;
     }
 
     .col-reacted {
@@ -1076,49 +1017,6 @@
             text = '(' + diffHours + 'h)';
         } else {
             text = '(' + diffDays + 'd)';
-        }
-        el.textContent = text;
-    });
-
-    // Calculate and display delta times
-    document.querySelectorAll('.delta').forEach(el => {
-        const sent = el.dataset.sent;
-        const viewed = el.dataset.viewed;
-
-        // Leave empty if no data
-        if (!sent || !viewed) {
-            el.textContent = '';
-            return;
-        }
-
-        const sentDate = new Date(sent.replace(' ', 'T'));
-        const viewedDate = new Date(viewed.replace(' ', 'T'));
-        const diffMs = viewedDate - sentDate;
-
-        // Leave empty if invalid
-        if (isNaN(diffMs) || diffMs < 0) {
-            el.textContent = '';
-            return;
-        }
-
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        let text;
-        if (diffMins < 1) {
-            text = '<1m';
-            el.classList.add('fast');
-        } else if (diffMins < 60) {
-            text = diffMins + 'm';
-            if (diffMins < 5) el.classList.add('fast');
-            else if (diffMins > 30) el.classList.add('slow');
-        } else if (diffHours < 24) {
-            text = diffHours + 'h';
-            el.classList.add('slow');
-        } else {
-            text = diffDays + 'd';
-            el.classList.add('very-slow');
         }
         el.textContent = text;
     });
