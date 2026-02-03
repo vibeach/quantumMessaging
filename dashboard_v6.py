@@ -354,6 +354,10 @@ def messages():
     # Get refresh delay setting
     refresh_delay = dynamic_config.get_setting('refresh_after_send_delay', 2)
 
+    # Auto-mark all messages as read when viewing the dashboard
+    # This notifies the sender that messages have been seen
+    database.mark_all_messages_read(MY_NAME)
+
     return render_template('messages_v6.html',
                          messages=ordered_msgs,
                          stats=stats,

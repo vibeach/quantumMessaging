@@ -181,7 +181,6 @@
                 <a href="{{ url_for('message_list') }}" class="{% if request.endpoint == 'message_list' %}active{% endif %}">List</a>
                 <a href="{{ url_for('medi') }}" class="{% if request.endpoint == 'medi' or request.endpoint == 'media' %}active{% endif %}">Medi</a>
                 <a href="{{ url_for('incept_control') }}" class="{% if request.endpoint == 'incept_control' %}active{% endif %}">Incept</a>
-                <a href="{{ url_for('ai_assistant') }}" class="{% if request.endpoint == 'ai_assistant' %}active{% endif %}">AI</a>
                 <a href="{{ url_for('incept_plus') }}" class="{% if request.endpoint == 'incept_plus' %}active{% endif %}">Incept+</a>
                 <a href="{{ url_for('overview') }}" class="{% if request.endpoint == 'overview' %}active{% endif %}">Stats</a>
                 <a href="{{ url_for('state') }}" class="{% if request.endpoint == 'state' %}active{% endif %}">State</a>

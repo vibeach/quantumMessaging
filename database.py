@@ -505,11 +505,12 @@ def save_online_status(user_id, username, status, last_seen=None):
         conn.commit()
         return cursor.lastrowid
 
-def get_messages(chat_id=None, limit=100, offset=0, include_deleted=True, direction=None):
+def get_messages(chat_id=None, limit=100, offset=0, include_deleted=False, direction=None):
     """Get messages, optionally filtered by chat and direction.
 
     Args:
         direction: 'incoming' for messages from her, 'outgoing' for messages from me
+    Note: Deleted messages are excluded by default.
     """
     with get_connection() as conn:
         cursor = conn.cursor()

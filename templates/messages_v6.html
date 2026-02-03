@@ -31,18 +31,8 @@
         <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
         <button class="media-btn-nice" onclick="document.getElementById('photo-input').click()" title="Photo">📷</button>
         <button class="media-btn-nice" onclick="document.getElementById('video-input').click()" title="Video">🎬</button>
-        <button class="media-btn-nice circle-btn-nice" onclick="document.getElementById('circle-input').click()" title="Video circle">⚫</button>
         <button class="media-btn-nice" id="notif-btn" onclick="enableNotifications()" title="Enable notifications">🔔</button>
         <button class="media-btn-nice" id="badge-btn" onclick="toggleBadge()" title="Toggle badge count">🔴</button>
-        <button class="media-btn-nice schedule-btn" id="schedule-btn" onclick="toggleScheduleMenu()" title="Schedule message">⏰</button>
-        <div class="schedule-menu" id="schedule-menu">
-            <div class="schedule-option" onclick="setSchedule(0)">Send now</div>
-            <div class="schedule-option" onclick="setSchedule(5)">In 5 min</div>
-            <div class="schedule-option" onclick="setSchedule(15)">In 15 min</div>
-            <div class="schedule-option" onclick="setSchedule(30)">In 30 min</div>
-            <div class="schedule-option" onclick="setSchedule(60)">In 1 hour</div>
-            <div class="schedule-option" onclick="setScheduleCustom()">Custom...</div>
-        </div>
         <span class="refresh-time">{{ last_refresh }}</span>
         <button class="mark-all-btn" onclick="markAllRead()" title="Mark all read">✓✓</button>
     </div>
@@ -51,10 +41,6 @@
             <div class="reply-indicator" id="reply-indicator" style="display:none">
                 <span class="reply-text" id="reply-text"></span>
                 <button type="button" class="reply-cancel" onclick="cancelReply()">✕</button>
-            </div>
-            <div class="schedule-indicator" id="schedule-indicator" style="display:none">
-                <span class="schedule-text" id="schedule-text"></span>
-                <button type="button" class="schedule-cancel" onclick="cancelSchedule()">✕</button>
             </div>
             <textarea name="text" placeholder="Query..." autocomplete="off" required rows="1" id="msg-input"></textarea>
             <button type="submit" id="send-btn">Go</button>
@@ -65,7 +51,6 @@
 <!-- Hidden file inputs -->
 <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="sendMedia(this, 'photo')">
 <input type="file" id="video-input" accept="video/*" style="display:none" onchange="sendMedia(this, 'video')">
-<input type="file" id="circle-input" accept="video/*" style="display:none" onchange="sendMedia(this, 'circle')">
 
 <!-- Upload progress overlay -->
 <div id="upload-progress-overlay" class="upload-overlay" style="display:none">
@@ -98,7 +83,7 @@
             {% set is_from_target = (msg.sender_name != my_name) %}
             {% set is_unread = is_from_target and (msg.marked_read is none or msg.marked_read == 0) %}
             {% set is_unseen = (not is_from_target) and (msg.seen_by_target is none or msg.seen_by_target == 0) %}
-            <span class="log-entry {% if msg.deleted %}deleted{% endif %} {% if is_unread %}unread{% endif %} {% if is_unseen %}unseen{% endif %} {% if is_lab_entry %}lab-entry{% endif %} {{ 'from-me' if msg.sender_name == my_name else 'from-them' }}" data-ts="{{ msg.timestamp }}" data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}" data-read-at="{{ msg.marked_read_at or '' }}" data-seen-at="{{ msg.seen_by_target_at or '' }}" data-deleted-at="{{ msg.deleted_at or '' }}" data-text="{{ msg.text[:50] | e }}"><span class="msg-time">[{{ msg.timestamp[11:16] if msg.timestamp and msg.timestamp|length > 16 else msg.timestamp }}]</span><span class="time-ago"></span> {{ msg.text }}{% if msg.media_type %} <i>[{{ msg.media_type }}]</i>{% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript }}</span>{% endif %}{% endif %}{% if msg.reactions %}<span class="reactions" data-reactions="{{ msg.reactions }}"></span>{% endif %}{% if msg.deleted %} <mark>x</mark><span class="deleted-time" data-deleted-at="{{ msg.deleted_at or '' }}"></span>{% endif %}{% if is_from_target and not is_lab_entry %}{% if is_unread %}<span class="tick single">✓</span><button class="mark-read-btn" onclick="markRead({{ msg.message_id }}, {{ msg.chat_id }}, this)">→✓✓</button>{% else %}<span class="tick double">✓✓</span><span class="read-time" data-read-at="{{ msg.marked_read_at or '' }}"></span>{% endif %}{% endif %}{% if not is_from_target and msg.seen_by_target and not is_lab_entry %}<span class="seen-time" data-seen-at="{{ msg.seen_by_target_at or '' }}"></span>{% endif %}{% if is_unseen and not is_lab_entry %}<span class="unseen-badge">○</span>{% endif %}{% if not is_lab_entry %}<button class="reply-btn" onclick="setReply({{ msg.message_id }}, '{{ msg.text[:30] | e | replace("'", "\\'") }}{% if msg.text|length > 30 %}...{% endif %}')" title="Reply">↩</button>{% endif %}</span>
+            <span class="log-entry {% if is_unread %}unread{% endif %} {% if is_unseen %}unseen{% endif %} {% if is_lab_entry %}lab-entry{% endif %} {{ 'from-me' if msg.sender_name == my_name else 'from-them' }}" data-ts="{{ msg.timestamp }}" data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}" data-read-at="{{ msg.marked_read_at or '' }}" data-seen-at="{{ msg.seen_by_target_at or '' }}" data-text="{{ msg.text[:50] | e }}"><span class="msg-time">[{{ msg.timestamp[11:16] if msg.timestamp and msg.timestamp|length > 16 else msg.timestamp }}]</span><span class="time-ago"></span> {{ msg.text }}{% if msg.media_type %} <i>[{{ msg.media_type }}]</i>{% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript }}</span>{% endif %}{% endif %}{% if msg.reactions %}<span class="reactions" data-reactions="{{ msg.reactions }}"></span>{% endif %}{% if is_from_target and not is_lab_entry %}{% if is_unread %}<span class="tick single">✓</span><button class="mark-read-btn" onclick="markRead({{ msg.message_id }}, {{ msg.chat_id }}, this)">→✓✓</button>{% else %}<span class="tick double">✓✓</span><span class="read-time" data-read-at="{{ msg.marked_read_at or '' }}"></span>{% endif %}{% endif %}{% if not is_from_target and msg.seen_by_target and not is_lab_entry %}<span class="seen-time" data-seen-at="{{ msg.seen_by_target_at or '' }}"></span>{% endif %}{% if is_unseen and not is_lab_entry %}<span class="unseen-badge">○</span>{% endif %}{% if not is_lab_entry %}<button class="reply-btn" onclick="setReply({{ msg.message_id }}, '{{ msg.text[:30] | e | replace("'", "\\'") }}{% if msg.text|length > 30 %}...{% endif %}')" title="Reply">↩</button>{% endif %}</span>
         {% endfor %}
     </div>
     {% else %}
@@ -132,10 +117,8 @@
         <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
         <button class="media-btn-nice" title="Add device">📷</button>
         <button class="media-btn-nice" title="Add scene">🎬</button>
-        <button class="media-btn-nice circle-btn-nice" title="Add routine">⚫</button>
         <button class="media-btn-nice" id="notif-btn-fake" onclick="enableNotifications()" title="Enable notifications">🔔</button>
         <button class="media-btn-nice" id="badge-btn-fake" onclick="toggleBadge()" title="Toggle badge count">🔴</button>
-        <button class="media-btn-nice schedule-btn" title="Schedule">⏰</button>
         <span class="refresh-time">{{ last_refresh }}</span>
         <button class="mark-all-btn" title="Sync all">✓✓</button>
     </div>
@@ -222,10 +205,6 @@
     [data-theme="dark"] .text-size-menu input { background: #374151; border-color: #4b5563; }
     .media-btn-nice { background: var(--bg); border: 1px solid var(--border); width: 26px; height: 26px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
     .media-btn-nice:hover { background: var(--border); }
-    .circle-btn-nice { background: #fef3c7; }
-    .circle-btn-nice:hover { background: #fde68a; }
-    [data-theme="dark"] .circle-btn-nice { background: #78350f; }
-    [data-theme="dark"] .circle-btn-nice:hover { background: #92400e; }
 
     .top-actions { display: flex; gap: 4px; }
     .send-form { display: flex; gap: 4px; flex: 1; align-items: flex-start; flex-wrap: wrap; }
@@ -242,23 +221,6 @@
     [data-theme="dark"] .reply-indicator { background: #0c4a6e; color: #7dd3fc; }
     [data-theme="dark"] .reply-cancel { color: #7dd3fc; }
 
-    /* Schedule indicator */
-    .schedule-indicator { display: flex; align-items: center; gap: 6px; background: #fef3c7; padding: 4px 8px; border-radius: 4px; font-size: 11px; color: #92400e; width: 100%; margin-bottom: 4px; }
-    .schedule-text { flex: 1; }
-    .schedule-cancel { background: none; border: none; font-size: 14px; cursor: pointer; color: #92400e; padding: 0 4px; }
-    .schedule-cancel:hover { color: #ef4444; }
-    [data-theme="dark"] .schedule-indicator { background: #78350f; color: #fef3c7; }
-    [data-theme="dark"] .schedule-cancel { color: #fef3c7; }
-
-    /* Schedule menu */
-    .schedule-btn { position: relative; }
-    .schedule-btn.active { background: #fef3c7; border-color: #f59e0b; }
-    .schedule-menu { display: none; position: absolute; top: 100%; left: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 0; margin-top: 4px; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 120px; }
-    .schedule-menu.show { display: block; }
-    .schedule-option { padding: 8px 12px; font-size: 12px; cursor: pointer; color: var(--text); }
-    .schedule-option:hover { background: var(--bg); }
-    [data-theme="dark"] .schedule-menu { background: #1f2937; border-color: #4b5563; }
-
     /* Reply button on messages */
     .reply-btn { background: none; border: none; font-size: 10px; cursor: pointer; color: var(--text-muted); padding: 0 2px; margin-left: 2px; opacity: 0.5; transition: opacity 0.2s; }
     .reply-btn:hover { opacity: 1; color: var(--accent); }
@@ -270,18 +232,6 @@
     .media-btn-sm:hover { background: var(--border); }
     .media-btn-xs { background: var(--bg); border: 1px solid var(--border); border-radius: 2px; padding: 2px 4px; font-size: 9px; cursor: pointer; }
     .media-btn-xs:hover { background: var(--border); }
-    .circle-btn { background: #fef3c7; }
-    .circle-btn:hover { background: #fde68a; }
-    .circle-btn-sm { background: #fef3c7; }
-    .circle-btn-sm:hover { background: #fde68a; }
-    .circle-btn-xs { background: #fef3c7; }
-    .circle-btn-xs:hover { background: #fde68a; }
-    [data-theme="dark"] .circle-btn { background: #78350f; }
-    [data-theme="dark"] .circle-btn:hover { background: #92400e; }
-    [data-theme="dark"] .circle-btn-sm { background: #78350f; }
-    [data-theme="dark"] .circle-btn-sm:hover { background: #92400e; }
-    [data-theme="dark"] .circle-btn-xs { background: #78350f; }
-    [data-theme="dark"] .circle-btn-xs:hover { background: #92400e; }
 
     .messages-container { padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.5; background: var(--card-bg); }
     [data-theme="dark"] .messages-container { background: var(--card-bg); }
@@ -310,7 +260,6 @@
     [data-theme="dark"] .from-them.age-2 { color: #d4d4d4; }
     [data-theme="dark"] .from-them.age-3 { color: #a3a3a3; }
 
-    .log-entry.deleted { text-decoration: line-through; opacity: 0.6; }
     .log-entry.unread { background: #fef3c7; padding: 1px 2px; border-radius: 1px; border-left: 1px solid #f59e0b; }
     .log-entry.unseen { background: #dbeafe; padding: 1px 2px; border-radius: 1px; border-left: 1px solid #3b82f6; }
     .log-entry.lab-entry { color: #ec4899; font-style: italic; }
@@ -322,9 +271,7 @@
     .msg-time { color: #9ca3af; font-size: 9px; }
     .time-ago { color: #6b7280; font-size: 9px; }
     .read-time, .seen-time { color: #10b981; font-size: 8px; margin-left: 1px; }
-    .deleted-time { color: #ef4444; font-size: 8px; margin-left: 1px; }
     .log-entry i { font-style: normal; color: var(--text-muted); font-size: 9px; }
-    .log-entry mark { background: #fecaca; color: #991b1b; padding: 0 1px; border-radius: 1px; font-size: 8px; text-decoration: none; }
     .reactions { background: #f3f4f6; padding: 0 2px; border-radius: 4px; font-size: 9px; margin-left: 1px; }
     .transcript { font-style: italic; font-size: 9px; margin-left: 4px; text-decoration: underline; text-decoration-color: #ec4899; text-underline-offset: 2px; }
     [data-theme="dark"] .transcript { text-decoration-color: #f472b6; }
@@ -1145,11 +1092,6 @@
         if (seenAt) el.textContent = formatReadTime(parseUTC(seenAt), 's');
     });
 
-    document.querySelectorAll('.deleted-time').forEach(el => {
-        const deletedAt = el.dataset.deletedAt;
-        if (deletedAt) el.textContent = formatReadTime(parseUTC(deletedAt), 'd');
-    });
-
     document.querySelectorAll('.reactions').forEach(el => {
         try {
             const reactions = JSON.parse(el.dataset.reactions);
@@ -1190,9 +1132,8 @@
         });
     }
 
-    // Reply and Schedule state
+    // Reply state
     let currentReplyTo = null;
-    let currentScheduleMinutes = 0;
 
     function setReply(msgId, msgText) {
         currentReplyTo = msgId;
@@ -1224,73 +1165,6 @@
     function cancelReply() {
         currentReplyTo = null;
         document.getElementById('reply-indicator').style.display = 'none';
-    }
-
-    function toggleScheduleMenu() {
-        const menu = document.getElementById('schedule-menu');
-        const btn = document.getElementById('schedule-btn');
-        menu.classList.toggle('show');
-        if (menu.classList.contains('show')) {
-            // Position menu relative to button
-            const rect = btn.getBoundingClientRect();
-            menu.style.top = (btn.offsetHeight + 4) + 'px';
-            menu.style.left = '0';
-            // Close when clicking outside
-            setTimeout(() => {
-                document.addEventListener('click', closeScheduleMenuOnClickOutside);
-            }, 0);
-        }
-    }
-
-    function closeScheduleMenuOnClickOutside(e) {
-        const menu = document.getElementById('schedule-menu');
-        const btn = document.getElementById('schedule-btn');
-        if (!menu.contains(e.target) && e.target !== btn) {
-            menu.classList.remove('show');
-            document.removeEventListener('click', closeScheduleMenuOnClickOutside);
-        }
-    }
-
-    function setSchedule(minutes) {
-        currentScheduleMinutes = minutes;
-        const indicator = document.getElementById('schedule-indicator');
-        const text = document.getElementById('schedule-text');
-        const btn = document.getElementById('schedule-btn');
-        const menu = document.getElementById('schedule-menu');
-
-        menu.classList.remove('show');
-        document.removeEventListener('click', closeScheduleMenuOnClickOutside);
-
-        if (minutes === 0) {
-            indicator.style.display = 'none';
-            btn.classList.remove('active');
-        } else {
-            let label = '';
-            if (minutes < 60) label = `⏰ In ${minutes} min`;
-            else if (minutes === 60) label = '⏰ In 1 hour';
-            else label = `⏰ In ${Math.floor(minutes/60)}h ${minutes%60}m`;
-            text.textContent = label;
-            indicator.style.display = 'flex';
-            btn.classList.add('active');
-        }
-    }
-
-    function setScheduleCustom() {
-        const menu = document.getElementById('schedule-menu');
-        menu.classList.remove('show');
-        document.removeEventListener('click', closeScheduleMenuOnClickOutside);
-
-        const input = prompt('Schedule message in how many minutes?', '10');
-        if (input !== null) {
-            const minutes = parseInt(input);
-            if (!isNaN(minutes) && minutes > 0) {
-                setSchedule(minutes);
-            }
-        }
-    }
-
-    function cancelSchedule() {
-        setSchedule(0);
     }
 
     // Send message via AJAX
@@ -1329,13 +1203,10 @@
         btn.textContent = '...';
         console.log('[Send] Sending message...');
 
-        // Build request body with optional reply_to and schedule
+        // Build request body with optional reply_to
         const body = { text: text };
         if (currentReplyTo) {
             body.reply_to = currentReplyTo;
-        }
-        if (currentScheduleMinutes > 0) {
-            body.schedule_minutes = currentScheduleMinutes;
         }
 
         fetch('/api/send-message', {
@@ -1347,19 +1218,11 @@
         .then(data => {
             if (data.success) {
                 console.log('[Send] Message sent successfully, preparing refresh...');
-                // Clear textarea, draft, and reply/schedule state
+                // Clear textarea, draft, and reply state
                 textarea.value = '';
                 localStorage.removeItem('draft_v6');
                 cancelReply();
-                cancelSchedule();
-
-                if (data.scheduled_at) {
-                    btn.textContent = '⏰';
-                    // Show alert, then schedule refresh after user dismisses it
-                    alert('Message scheduled for: ' + data.scheduled_at);
-                } else {
-                    btn.textContent = '✓';
-                }
+                btn.textContent = '✓';
                 // Use staggered refresh to ensure page reloads with new data
                 scheduleRefreshes();
             } else {
