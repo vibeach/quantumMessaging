@@ -5,13 +5,20 @@
 # Create data directory if needed
 mkdir -p ${DATA_DIR:-/data}/media
 
-# Start monitor in background
+# Start monitor in background with output visible
 echo "Starting Telegram monitor..."
-python monitor.py &
+python -u monitor.py 2>&1 &
 MONITOR_PID=$!
 
-# Give monitor time to initialize
-sleep 5
+# Give monitor time to initialize and show any errors
+sleep 10
+
+# Check if monitor is still running
+if kill -0 $MONITOR_PID 2>/dev/null; then
+    echo "Monitor started successfully (PID: $MONITOR_PID)"
+else
+    echo "ERROR: Monitor failed to start! Check logs above."
+fi
 
 # Start dashboard with gunicorn
 echo "Starting dashboard on port ${PORT:-5001}..."
