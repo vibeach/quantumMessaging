@@ -1,0 +1,17 @@
+run = "bash start.sh"
+entrypoint = "dashboard_v6.py"
+
+[env]
+DATA_DIR = "/home/runner/${REPL_SLUG}/data"
+PORT = "5000"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["bash", "start.sh"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
