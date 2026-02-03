@@ -1140,11 +1140,16 @@ def export_all_data():
         cursor.execute("SELECT * FROM claude_logs ORDER BY timestamp")
         claude_logs = [dict(row) for row in cursor.fetchall()]
 
+        # Export system_logs (includes lab entries with category='control_room')
+        cursor.execute("SELECT * FROM system_logs ORDER BY timestamp")
+        system_logs = [dict(row) for row in cursor.fetchall()]
+
         return {
             'messages': messages,
             'online_status': online_status,
             'claude_requests': claude_requests,
             'claude_logs': claude_logs,
+            'system_logs': system_logs,
             'exported_at': utc_now().isoformat(),
             'stats': get_sync_stats()
         }
@@ -1287,6 +1292,24 @@ def import_and_merge_data(data):
                 ))
                 claude_logs_added += 1
 
+        # Import system_logs (includes lab entries)
+        system_logs_added = 0
+        for log in data.get('system_logs', []):
+            # Dedupe by category + action + timestamp + message
+            cursor.execute(
+                "SELECT id FROM system_logs WHERE category = ? AND action = ? AND timestamp = ? AND message = ?",
+                (log.get('category'), log.get('action'), log.get('timestamp'), log.get('message'))
+            )
+            if not cursor.fetchone():
+                cursor.execute("""
+                    INSERT INTO system_logs (category, action, status, message, details, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    log.get('category'), log.get('action'), log.get('status'),
+                    log.get('message'), log.get('details'), log.get('timestamp')
+                ))
+                system_logs_added += 1
+
         conn.commit()
 
         return {
@@ -1294,7 +1317,8 @@ def import_and_merge_data(data):
             'messages_updated': messages_updated,
             'status_added': status_added,
             'claude_requests_added': claude_requests_added,
-            'claude_logs_added': claude_logs_added
+            'claude_logs_added': claude_logs_added,
+            'system_logs_added': system_logs_added
         }
 
 
