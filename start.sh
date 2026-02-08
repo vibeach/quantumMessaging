@@ -30,7 +30,7 @@ fi
 
 # Start dashboard with gunicorn
 echo "Starting dashboard on port ${PORT:-5001}..."
-exec gunicorn dashboard_v6:app \
+exec gunicorn dashboard_multi:app \
     --bind 0.0.0.0:${PORT:-5001} \
     --workers 2 \
     --timeout 120 \
