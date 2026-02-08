@@ -93,7 +93,12 @@ class UserMonitor:
                     logger.error(f"[{self.username}] Error handling edit: {e}")
 
             # Message deleted handler
-            @self.client.on(events.MessageDeleted(chats=target_id))
+            # Note: No chats= filter here because Telegram does not include
+            # chat_id in MessageDeleted events for private chats, so the
+            # filter would silently drop every deletion.  The _mark_deleted
+            # method already scopes the UPDATE to chat_id = target_id, so
+            # stray IDs from other chats are harmlessly ignored.
+            @self.client.on(events.MessageDeleted)
             async def handle_delete(event):
                 try:
                     await self._mark_deleted(event.deleted_ids, target_id)
