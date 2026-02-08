@@ -485,10 +485,19 @@ def start_monitors():
     thread.start()
 
 
-if __name__ == '__main__':
-    # Ensure data directory exists
-    os.makedirs(DATA_DIR, exist_ok=True)
+# Ensure data directory exists (needed for both direct run and gunicorn)
+os.makedirs(DATA_DIR, exist_ok=True)
 
+# Start monitors automatically when module is loaded (works with gunicorn)
+# Only start once by checking if monitor_manager is already set
+if COORDINATOR_PASSWORD and monitor_manager is None:
+    logger.info("Starting monitors (module load)...")
+    start_monitors()
+elif not COORDINATOR_PASSWORD:
+    logger.warning("QM_COORDINATOR_PASSWORD not set - monitors will not start")
+
+
+if __name__ == '__main__':
     # Check for coordinator password
     if not COORDINATOR_PASSWORD:
         print("\n" + "=" * 60)
@@ -496,9 +505,6 @@ if __name__ == '__main__':
         print("User credentials cannot be encrypted without it.")
         print("Set it with: export QM_COORDINATOR_PASSWORD='your-password'")
         print("=" * 60 + "\n")
-
-    # Start monitors
-    start_monitors()
 
     # Run Flask app
     print(f"\nStarting Quantum Messaging on port {PORT}...")
