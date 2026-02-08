@@ -158,6 +158,15 @@ def cmd_show(user_manager, coordinator_password, username=None):
             print(f"  API ID: {user.get('api_id', '[not set]')}")
             print(f"  API Hash: {user.get('api_hash', '[not set]')}")
             print(f"  Target: {user.get('target_username', '[not set]')} ({user.get('target_display_name', '')})")
+            session_str = user.get('session_string', '')
+            if session_str:
+                # Show truncated version for security, full string is long
+                if len(session_str) > 50:
+                    print(f"  Session String: {session_str[:25]}...{session_str[-25:]} ({len(session_str)} chars)")
+                else:
+                    print(f"  Session String: {session_str}")
+            else:
+                print(f"  Session String: [not set - using file-based session]")
         else:
             print("  [Setup not complete]")
 

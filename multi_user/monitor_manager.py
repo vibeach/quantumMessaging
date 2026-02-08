@@ -19,7 +19,8 @@ class UserMonitor:
     """Monitors a single user's Telegram account."""
 
     def __init__(self, user_id: int, username: str, api_id: str, api_hash: str,
-                 phone: str, target_username: str, session_path: str, db_path: str,
+                 phone: str, target_username: str, db_path: str,
+                 session_string: str = None, session_path: str = None,
                  target_display_name: str = None):
         self.user_id = user_id
         self.username = username
@@ -28,7 +29,8 @@ class UserMonitor:
         self.phone = phone
         self.target_username = target_username
         self.target_display_name = target_display_name or target_username
-        self.session_path = session_path
+        self.session_string = session_string
+        self.session_path = session_path  # Fallback for legacy file-based sessions
         self.db_path = db_path
 
         self.client = None
@@ -41,14 +43,24 @@ class UserMonitor:
     async def _run_client(self):
         """Run the Telethon client."""
         from telethon import TelegramClient, events
+        from telethon.sessions import StringSession
         import sqlite3
 
         try:
-            self.client = TelegramClient(
-                self.session_path,
-                int(self.api_id),
-                self.api_hash
-            )
+            # Use StringSession from database if available, otherwise fall back to file-based session
+            if self.session_string:
+                self.client = TelegramClient(
+                    StringSession(self.session_string),
+                    int(self.api_id),
+                    self.api_hash
+                )
+            else:
+                # Legacy fallback for file-based sessions
+                self.client = TelegramClient(
+                    self.session_path,
+                    int(self.api_id),
+                    self.api_hash
+                )
 
             await self.client.start(phone=self.phone)
             logger.info(f"[{self.username}] Telegram client started")
@@ -284,7 +296,8 @@ class MonitorManager:
             phone=user.get('phone', ''),
             target_username=user.get('target_username', ''),
             target_display_name=user.get('target_display_name'),
-            session_path=session_path,
+            session_string=user.get('session_string'),  # Prefer StringSession from DB
+            session_path=session_path,  # Fallback for legacy file-based sessions
             db_path=db_path
         )
 
@@ -307,6 +320,7 @@ class MonitorManager:
         user = self.user_manager.get_user(user_id)
         if user:
             config = self.user_manager.get_telegram_config(user_id, decrypt=True)
+            session_string = self.user_manager.get_session_string(user_id)
             if config and config.get('setup_complete'):
                 user_data = {
                     'id': user_id,
@@ -315,7 +329,8 @@ class MonitorManager:
                     'api_hash': config.get('api_hash', ''),
                     'phone': config.get('phone', ''),
                     'target_username': config.get('target_username', ''),
-                    'target_display_name': config.get('target_display_name')
+                    'target_display_name': config.get('target_display_name'),
+                    'session_string': session_string
                 }
                 self.start_user_monitor(user_data)
 

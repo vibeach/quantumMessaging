@@ -142,16 +142,20 @@ def setup_step3():
     session['setup_api_hash'] = api_hash
     session['setup_phone'] = phone
 
-    # Request verification code
+    # Request verification code using StringSession
     try:
         from telethon.sync import TelegramClient
+        from telethon.sessions import StringSession
 
-        session_path = user_manager.get_user_session_path(user['username'])
-        client = TelegramClient(session_path, int(api_id), api_hash)
+        string_session = StringSession()
+        client = TelegramClient(string_session, int(api_id), api_hash)
         client.connect()
 
         if not client.is_user_authorized():
-            client.send_code_request(phone)
+            sent_code = client.send_code_request(phone)
+            # Store phone_code_hash and temp session string in Flask session
+            session['setup_phone_code_hash'] = sent_code.phone_code_hash
+            session['setup_temp_session'] = client.session.save()
 
         client.disconnect()
 
@@ -170,31 +174,58 @@ def setup_step4():
     """Verify code and create session."""
     user = get_current_user()
     code = request.form.get('code', '').strip()
+    twofa_password = request.form.get('twofa_password', '').strip()
 
     api_id = session.get('setup_api_id')
     api_hash = session.get('setup_api_hash')
     phone = session.get('setup_phone')
+    phone_code_hash = session.get('setup_phone_code_hash')
+    temp_session = session.get('setup_temp_session')
 
     if not all([api_id, api_hash, phone]):
         return redirect(url_for('setup', step=2))
 
     try:
         from telethon.sync import TelegramClient
+        from telethon.sessions import StringSession
+        from telethon.errors import SessionPasswordNeededError
 
-        session_path = user_manager.get_user_session_path(user['username'])
-        client = TelegramClient(session_path, int(api_id), api_hash)
+        # Resume from temp session
+        client = TelegramClient(StringSession(temp_session), int(api_id), api_hash)
         client.connect()
 
-        client.sign_in(phone, code)
+        try:
+            # If we have 2FA password, use it
+            if twofa_password:
+                client.sign_in(password=twofa_password)
+            else:
+                # Try to sign in with code
+                client.sign_in(phone, code, phone_code_hash=phone_code_hash)
+        except SessionPasswordNeededError:
+            # 2FA is enabled, need password
+            # Update temp session and store code for re-use
+            session['setup_temp_session'] = client.session.save()
+            session['setup_code'] = code
+            client.disconnect()
+            return render_template('multi/setup.html', step='3_2fa', code=code)
+
+        # Success! Save the session string to database
+        final_session_string = client.session.save()
         client.disconnect()
 
-        # Mark session as created
+        # Save session string to database
+        user_manager.save_session_string(user['id'], final_session_string)
         user_manager.mark_session_created(user['id'])
 
         return render_template('multi/setup.html', step=4)
 
     except Exception as e:
         logger.error(f"Error verifying code: {e}")
+        # Determine which step to return to
+        if twofa_password:
+            return render_template('multi/setup.html', step='3_2fa',
+                                 code=session.get('setup_code', code),
+                                 error=f"2FA verification failed: {e}")
         return render_template('multi/setup.html', step=3,
                              error=f"Verification failed: {e}")
 

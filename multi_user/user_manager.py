@@ -89,6 +89,12 @@ class UserManager:
                 )
             """)
 
+            # Migration: Add session_string_encrypted column if not exists
+            try:
+                cursor.execute("ALTER TABLE telegram_config ADD COLUMN session_string_encrypted TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
             conn.commit()
 
     def create_user(self, username: str, password: str) -> Optional[int]:
@@ -286,6 +292,47 @@ class UserManager:
             conn.commit()
             return cursor.rowcount > 0
 
+    def save_session_string(self, user_id: int, session_string: str) -> bool:
+        """Save encrypted session string for a user."""
+        coordinator_pwd = get_coordinator_password()
+        if not coordinator_pwd:
+            raise ValueError("Coordinator password not set")
+
+        with self._get_master_connection() as conn:
+            cursor = conn.cursor()
+
+            session_enc = encrypt_value(session_string, coordinator_pwd)
+
+            cursor.execute("""
+                UPDATE telegram_config
+                SET session_string_encrypted = ?, session_created = 1, updated_at = ?
+                WHERE user_id = ?
+            """, (session_enc, datetime.utcnow().isoformat(), user_id))
+
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_session_string(self, user_id: int) -> Optional[str]:
+        """Get decrypted session string for a user."""
+        coordinator_pwd = get_coordinator_password()
+
+        with self._get_master_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT session_string_encrypted FROM telegram_config WHERE user_id = ?
+            """, (user_id,))
+            row = cursor.fetchone()
+
+            if not row or not row['session_string_encrypted']:
+                return None
+
+            if coordinator_pwd:
+                try:
+                    return decrypt_value(row['session_string_encrypted'], coordinator_pwd)
+                except Exception:
+                    return None
+            return None
+
     def mark_setup_complete(self, user_id: int) -> bool:
         """Mark that user setup is complete."""
         with self._get_master_connection() as conn:
@@ -451,7 +498,7 @@ class UserManager:
             cursor.execute("""
                 SELECT u.id, u.username,
                        tc.api_id_encrypted, tc.api_hash_encrypted, tc.phone_encrypted,
-                       tc.target_username, tc.target_display_name
+                       tc.target_username, tc.target_display_name, tc.session_string_encrypted
                 FROM users u
                 JOIN telegram_config tc ON u.id = tc.user_id
                 WHERE u.is_active = 1 AND tc.setup_complete = 1
@@ -465,6 +512,8 @@ class UserManager:
                         user['api_id'] = decrypt_value(user.get('api_id_encrypted', ''), coordinator_pwd)
                         user['api_hash'] = decrypt_value(user.get('api_hash_encrypted', ''), coordinator_pwd)
                         user['phone'] = decrypt_value(user.get('phone_encrypted', ''), coordinator_pwd)
+                        if user.get('session_string_encrypted'):
+                            user['session_string'] = decrypt_value(user['session_string_encrypted'], coordinator_pwd)
                     except Exception:
                         continue
                 users.append(user)
@@ -479,6 +528,7 @@ class UserManager:
                 SELECT u.id, u.username, u.password_encrypted, u.created_at, u.last_login,
                        tc.api_id_encrypted, tc.api_hash_encrypted, tc.phone_encrypted,
                        tc.target_username, tc.target_display_name, tc.setup_complete,
+                       tc.session_string_encrypted,
                        ms.is_running, ms.last_heartbeat, ms.messages_today
                 FROM users u
                 LEFT JOIN telegram_config tc ON u.id = tc.user_id
@@ -494,6 +544,8 @@ class UserManager:
                     user['api_id'] = decrypt_value(user.get('api_id_encrypted', ''), coordinator_password)
                     user['api_hash'] = decrypt_value(user.get('api_hash_encrypted', ''), coordinator_password)
                     user['phone'] = decrypt_value(user.get('phone_encrypted', ''), coordinator_password)
+                    if user.get('session_string_encrypted'):
+                        user['session_string'] = decrypt_value(user['session_string_encrypted'], coordinator_password)
                 except Exception as e:
                     user['decrypt_error'] = str(e)
                 users.append(user)

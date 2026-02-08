@@ -157,22 +157,23 @@
 {% block content %}
 <div class="card">
     <h1>Connect Telegram</h1>
-    <p class="subtitle">Step {{ step }} of 4</p>
+    {% set step_num = step|string|replace('_2fa', '')|int if step != '3_2fa' else 3 %}
+    <p class="subtitle">Step {{ step_num }} of 4{% if step == '3_2fa' %} (2FA){% endif %}</p>
 
     <div class="steps">
-        <div class="step {% if step >= 1 %}active{% endif %} {% if step > 1 %}done{% endif %}">
+        <div class="step {% if step_num >= 1 %}active{% endif %} {% if step_num > 1 %}done{% endif %}">
             <div class="step-number">1</div>
             <div class="step-label">API Keys</div>
         </div>
-        <div class="step {% if step >= 2 %}active{% endif %} {% if step > 2 %}done{% endif %}">
+        <div class="step {% if step_num >= 2 %}active{% endif %} {% if step_num > 2 %}done{% endif %}">
             <div class="step-number">2</div>
             <div class="step-label">Credentials</div>
         </div>
-        <div class="step {% if step >= 3 %}active{% endif %} {% if step > 3 %}done{% endif %}">
+        <div class="step {% if step_num >= 3 %}active{% endif %} {% if step_num > 3 %}done{% endif %}">
             <div class="step-number">3</div>
             <div class="step-label">Verify</div>
         </div>
-        <div class="step {% if step >= 4 %}active{% endif %}">
+        <div class="step {% if step_num >= 4 %}active{% endif %}">
             <div class="step-number">4</div>
             <div class="step-label">Target</div>
         </div>
@@ -262,6 +263,32 @@
         <p>Verifying...</p>
     </div>
 
+    {% elif step == '3_2fa' %}
+    <!-- Step 3 2FA: Two-Factor Authentication -->
+    <p style="text-align: center; margin-bottom: 20px; color: var(--text-muted);">
+        Your account has Two-Factor Authentication enabled.<br>
+        Please enter your 2FA password.
+    </p>
+
+    <form method="post" action="/setup/4" id="twofa-form">
+        <input type="hidden" name="code" value="{{ code }}">
+        <div class="form-group">
+            <label for="twofa_password">2FA Password</label>
+            <input type="password" id="twofa_password" name="twofa_password" required autofocus>
+            <div class="hint">Your Telegram 2FA password (cloud password)</div>
+        </div>
+
+        <div class="btn-row">
+            <a href="/setup/2" class="btn btn-secondary">Start Over</a>
+            <button type="submit" class="btn">Verify</button>
+        </div>
+    </form>
+
+    <div class="loading" id="loading-2fa">
+        <div class="spinner"></div>
+        <p>Verifying 2FA...</p>
+    </div>
+
     {% elif step == 4 %}
     <!-- Step 4: Target user -->
     <p style="text-align: center; margin-bottom: 20px; color: var(--text-muted);">
@@ -309,6 +336,15 @@
         verifyForm.addEventListener('submit', function() {
             document.getElementById('loading').classList.add('show');
             verifyForm.style.display = 'none';
+        });
+    }
+
+    // Show loading on 2FA submit
+    const twofaForm = document.getElementById('twofa-form');
+    if (twofaForm) {
+        twofaForm.addEventListener('submit', function() {
+            document.getElementById('loading-2fa').classList.add('show');
+            twofaForm.style.display = 'none';
         });
     }
 </script>
