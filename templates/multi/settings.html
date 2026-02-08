@@ -1,0 +1,164 @@
+{% extends "multi/base_v6.html" %}
+
+{% block title %}Settings - Quantum Messaging{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .settings-card {
+        padding: 24px;
+        margin-top: 16px;
+    }
+
+    .settings-section {
+        margin-bottom: 32px;
+    }
+
+    .settings-section h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 8px;
+    }
+
+    .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .setting-item:last-child {
+        border-bottom: none;
+    }
+
+    .setting-label {
+        font-weight: 500;
+    }
+
+    .setting-value {
+        color: var(--text-muted);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+    }
+
+    .setting-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge-active {
+        background: #d1fae5;
+        color: #047857;
+    }
+
+    .badge-inactive {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    [data-theme="dark"] .badge-active {
+        background: #065f46;
+        color: #d1fae5;
+    }
+
+    [data-theme="dark"] .badge-inactive {
+        background: #78350f;
+        color: #fef3c7;
+    }
+
+    .btn-danger {
+        background: #dc2626;
+    }
+
+    .btn-danger:hover {
+        background: #b91c1c;
+    }
+
+    .btn-sm {
+        padding: 8px 16px;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card settings-card">
+    <h1>Settings</h1>
+    <p class="subtitle">Manage your account and Telegram connection</p>
+
+    <div class="settings-section">
+        <h2>Account</h2>
+        <div class="setting-item">
+            <span class="setting-label">Username</span>
+            <span class="setting-value">{{ user.username }}</span>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">User ID</span>
+            <span class="setting-value">{{ user.id }}</span>
+        </div>
+    </div>
+
+    {% if config %}
+    <div class="settings-section">
+        <h2>Telegram Connection</h2>
+        <div class="setting-item">
+            <span class="setting-label">Phone Number</span>
+            <span class="setting-value">{{ config.phone or 'Not set' }}</span>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Target</span>
+            <span class="setting-value">{{ config.target_username or 'Not set' }} ({{ config.target_display_name or '-' }})</span>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Session Status</span>
+            {% if config.session_created %}
+            <span class="setting-badge badge-active">Active</span>
+            {% else %}
+            <span class="setting-badge badge-inactive">Pending</span>
+            {% endif %}
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Setup Complete</span>
+            {% if config.setup_complete %}
+            <span class="setting-badge badge-active">Yes</span>
+            {% else %}
+            <span class="setting-badge badge-inactive">No</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="settings-section">
+        <h2>Display</h2>
+        <div class="setting-item">
+            <span class="setting-label">Theme</span>
+            <button class="btn btn-sm btn-secondary" onclick="toggleTheme()">Toggle Dark Mode</button>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h2>Actions</h2>
+        <div class="setting-item">
+            <span class="setting-label">Logout</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">Logout</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+    }
+</script>
+{% endblock %}

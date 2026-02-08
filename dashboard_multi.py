@@ -327,14 +327,27 @@ def index():
     cursor.execute("SELECT COUNT(*) as total FROM messages WHERE deleted = 0")
     total = cursor.fetchone()['total']
 
-    return render_template('multi/messages.html',
+    # Check history unlock status
+    import time
+    history_unlocked = False
+    if session.get('history_unlocked'):
+        unlock_time = session.get('history_unlock_time', 0)
+        if time.time() - unlock_time < 600:  # 10 minutes
+            history_unlocked = True
+        else:
+            session.pop('history_unlocked', None)
+            session.pop('history_unlock_time', None)
+
+    return render_template('multi/messages_v6.html',
                          messages=messages,
                          my_name=my_name,
                          target_name=target_name,
                          page=page,
                          has_more=len(messages) == per_page,
                          total=total,
-                         last_refresh=datetime.now().strftime('%H:%M:%S'))
+                         last_refresh=datetime.now().strftime('%H:%M:%S'),
+                         history_unlocked=history_unlocked,
+                         refresh_delay=2)
 
 
 # ==================== API ENDPOINTS ====================
@@ -451,6 +464,227 @@ def api_messages():
     messages = [dict(row) for row in cursor.fetchall()]
 
     return jsonify({'success': True, 'messages': messages})
+
+
+# ==================== ADDITIONAL API ENDPOINTS ====================
+
+@app.route('/api/badge/count', methods=['GET'])
+def api_badge_count():
+    """Get current badge count (unread messages from target)."""
+    user = get_current_user()
+    if not user:
+        return jsonify({'count': 0, 'enabled': False})
+
+    db = get_user_db()
+    if not db:
+        return jsonify({'count': 0, 'enabled': False})
+
+    cursor = db.cursor()
+    my_name = user['username']
+
+    # Count unread messages from target
+    cursor.execute("""
+        SELECT COUNT(*) FROM messages
+        WHERE sender_name != ? AND (marked_read IS NULL OR marked_read = 0) AND deleted = 0
+    """, (my_name,))
+    count = cursor.fetchone()[0]
+
+    # Check badge setting
+    cursor.execute("SELECT value FROM settings WHERE key = 'badge_enabled'")
+    row = cursor.fetchone()
+    enabled = row['value'] == 'true' if row else True
+
+    return jsonify({'count': count if enabled else 0, 'enabled': enabled})
+
+
+@app.route('/api/settings/badge', methods=['GET', 'POST'])
+@login_required
+def api_settings_badge():
+    """Get or set badge setting."""
+    db = get_user_db()
+    if not db:
+        return jsonify({'enabled': True})
+
+    cursor = db.cursor()
+
+    # Ensure settings table exists
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
+    db.commit()
+
+    if request.method == 'GET':
+        cursor.execute("SELECT value FROM settings WHERE key = 'badge_enabled'")
+        row = cursor.fetchone()
+        enabled = row['value'] == 'true' if row else True
+        return jsonify({'enabled': enabled})
+    else:
+        data = request.get_json() or {}
+        enabled = data.get('enabled', True)
+        cursor.execute("""
+            INSERT OR REPLACE INTO settings (key, value) VALUES ('badge_enabled', ?)
+        """, ('true' if enabled else 'false',))
+        db.commit()
+        return jsonify({'success': True, 'enabled': enabled})
+
+
+@app.route('/api/push/vapid-public-key', methods=['GET'])
+def api_push_vapid_key():
+    """Get the VAPID public key for push subscription."""
+    # Placeholder VAPID key - in production, generate proper keys
+    public_key = os.environ.get('VAPID_PUBLIC_KEY', 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U')
+    return jsonify({'publicKey': public_key})
+
+
+@app.route('/api/push/subscribe', methods=['POST'])
+@login_required
+def api_push_subscribe():
+    """Subscribe to push notifications."""
+    user = get_current_user()
+    data = request.get_json() or {}
+
+    endpoint = data.get('endpoint')
+    keys = data.get('keys', {})
+    p256dh = keys.get('p256dh')
+    auth = keys.get('auth')
+
+    if not endpoint or not p256dh or not auth:
+        return jsonify({'error': 'Invalid subscription data'}), 400
+
+    db = get_user_db()
+    if db:
+        cursor = db.cursor()
+        # Ensure push_subscriptions table exists
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id INTEGER PRIMARY KEY,
+                endpoint TEXT UNIQUE,
+                p256dh TEXT,
+                auth TEXT,
+                user_agent TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            INSERT OR REPLACE INTO push_subscriptions (endpoint, p256dh, auth, user_agent)
+            VALUES (?, ?, ?, ?)
+        """, (endpoint, p256dh, auth, request.headers.get('User-Agent', '')))
+        db.commit()
+
+    logger.info(f"[{user['username']}] Push subscription registered")
+    return jsonify({'success': True, 'message': 'Subscribed to push notifications'})
+
+
+@app.route('/api/unlock-history', methods=['POST'])
+@login_required
+def api_unlock_history():
+    """Unlock full history for 10 minutes."""
+    data = request.get_json() or {}
+    password = data.get('password', '').strip()
+
+    # Use coordinator password or a default unlock code
+    unlock_code = os.environ.get('HISTORY_UNLOCK_CODE', '0319')
+
+    if password == unlock_code:
+        import time
+        session['history_unlocked'] = True
+        session['history_unlock_time'] = time.time()
+        return jsonify({'success': True, 'message': 'History unlocked for 10 minutes'})
+    else:
+        return jsonify({'success': False, 'error': 'Invalid password'}), 401
+
+
+@app.route('/api/send-media', methods=['POST'])
+@login_required
+def api_send_media():
+    """API endpoint to send a photo, video, or video circle."""
+    import uuid
+
+    user = get_current_user()
+
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+        media_type = request.form.get('type', 'photo')
+
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        # Generate unique filename
+        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'bin'
+        filename = f"upload_{media_type}_{uuid.uuid4().hex[:8]}.{ext}"
+
+        # Save to user's media directory
+        user_media_dir = os.path.join(DATA_DIR, 'users', user['username'], 'media')
+        os.makedirs(user_media_dir, exist_ok=True)
+        filepath = os.path.join(user_media_dir, filename)
+
+        file.save(filepath)
+
+        # Queue for sending
+        db = get_user_db()
+        if db:
+            cursor = db.cursor()
+            # Ensure pending_media table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS pending_media (
+                    id INTEGER PRIMARY KEY,
+                    filepath TEXT,
+                    media_type TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    sent_at TEXT
+                )
+            """)
+            cursor.execute("""
+                INSERT INTO pending_media (filepath, media_type, status)
+                VALUES (?, ?, 'pending')
+            """, (filepath, media_type))
+            db.commit()
+            msg_id = cursor.lastrowid
+        else:
+            msg_id = 0
+
+        logger.info(f"[{user['username']}] Media uploaded: {filename} ({media_type})")
+        return jsonify({'success': True, 'id': msg_id, 'file': filename})
+
+    except Exception as e:
+        logger.error(f"Media upload error: {e}")
+        return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+
+
+# ==================== PAGES ====================
+
+@app.route('/tutorials')
+@login_required
+def tutorials():
+    """Safe landing page - shows fake Home Assistant content."""
+    return render_template('multi/messages_v6.html',
+                         messages=[],
+                         my_name='',
+                         target_name='',
+                         page=1,
+                         has_more=False,
+                         total=0,
+                         last_refresh=datetime.now().strftime('%H:%M:%S'),
+                         history_unlocked=False)
+
+
+@app.route('/settings')
+@login_required
+def settings():
+    """User settings page."""
+    user = get_current_user()
+    config = get_user_config()
+
+    return render_template('multi/settings.html',
+                         user=user,
+                         config=config)
 
 
 # ==================== STATIC FILES ====================
