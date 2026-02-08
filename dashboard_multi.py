@@ -143,21 +143,35 @@ def setup_step3():
     session['setup_phone'] = phone
 
     # Request verification code using StringSession
+    # Use async client with explicit event loop to avoid
+    # "no current event loop in thread" errors in Gunicorn worker threads
     try:
-        from telethon.sync import TelegramClient
+        import asyncio
+        from telethon import TelegramClient
         from telethon.sessions import StringSession
 
-        string_session = StringSession()
-        client = TelegramClient(string_session, int(api_id), api_hash)
-        client.connect()
+        async def _send_code():
+            string_session = StringSession()
+            client = TelegramClient(string_session, int(api_id), api_hash)
+            await client.connect()
+            try:
+                if not await client.is_user_authorized():
+                    sent_code = await client.send_code_request(phone)
+                    return sent_code.phone_code_hash, client.session.save()
+                return None, client.session.save()
+            finally:
+                await client.disconnect()
 
-        if not client.is_user_authorized():
-            sent_code = client.send_code_request(phone)
-            # Store phone_code_hash and temp session string in Flask session
-            session['setup_phone_code_hash'] = sent_code.phone_code_hash
-            session['setup_temp_session'] = client.session.save()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            phone_code_hash, temp_session_str = loop.run_until_complete(_send_code())
+        finally:
+            loop.close()
 
-        client.disconnect()
+        if phone_code_hash:
+            session['setup_phone_code_hash'] = phone_code_hash
+            session['setup_temp_session'] = temp_session_str
 
         return render_template('multi/setup.html', step=3)
 
@@ -186,35 +200,46 @@ def setup_step4():
         return redirect(url_for('setup', step=2))
 
     try:
-        from telethon.sync import TelegramClient
+        import asyncio
+        from telethon import TelegramClient
         from telethon.sessions import StringSession
         from telethon.errors import SessionPasswordNeededError
 
-        # Resume from temp session
-        client = TelegramClient(StringSession(temp_session), int(api_id), api_hash)
-        client.connect()
+        # Use a sentinel to communicate 2FA needed back from the coroutine
+        _NEEDS_2FA = 'NEEDS_2FA'
 
+        async def _verify_code():
+            client = TelegramClient(StringSession(temp_session), int(api_id), api_hash)
+            await client.connect()
+            try:
+                try:
+                    if twofa_password:
+                        await client.sign_in(password=twofa_password)
+                    else:
+                        await client.sign_in(phone, code, phone_code_hash=phone_code_hash)
+                except SessionPasswordNeededError:
+                    updated_session = client.session.save()
+                    return _NEEDS_2FA, updated_session
+
+                final_session_string = client.session.save()
+                return final_session_string, None
+            finally:
+                await client.disconnect()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            # If we have 2FA password, use it
-            if twofa_password:
-                client.sign_in(password=twofa_password)
-            else:
-                # Try to sign in with code
-                client.sign_in(phone, code, phone_code_hash=phone_code_hash)
-        except SessionPasswordNeededError:
-            # 2FA is enabled, need password
-            # Update temp session and store code for re-use
-            session['setup_temp_session'] = client.session.save()
+            result, extra = loop.run_until_complete(_verify_code())
+        finally:
+            loop.close()
+
+        if result == _NEEDS_2FA:
+            session['setup_temp_session'] = extra
             session['setup_code'] = code
-            client.disconnect()
             return render_template('multi/setup.html', step='3_2fa', code=code)
 
         # Success! Save the session string to database
-        final_session_string = client.session.save()
-        client.disconnect()
-
-        # Save session string to database
-        user_manager.save_session_string(user['id'], final_session_string)
+        user_manager.save_session_string(user['id'], result)
         user_manager.mark_session_created(user['id'])
 
         return render_template('multi/setup.html', step=4)
