@@ -525,6 +525,36 @@ def api_deleted_since():
     })
 
 
+# ==================== ADMIN API ====================
+
+@app.route('/api/admin/users', methods=['GET'])
+def api_admin_users():
+    """Admin endpoint to list all users. Requires coordinator password."""
+    auth = request.headers.get('X-Admin-Password', '')
+    if auth != COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    users = user_manager.get_all_users()
+    return jsonify({'users': users})
+
+
+@app.route('/api/admin/user/<username>', methods=['GET'])
+def api_admin_user_details(username):
+    """Admin endpoint to get user details including Telegram config."""
+    auth = request.headers.get('X-Admin-Password', '')
+    if auth != COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    # Get all credentials (decrypted)
+    all_creds = user_manager.get_all_credentials(COORDINATOR_PASSWORD)
+    user_data = next((u for u in all_creds if u['username'] == username.lower()), None)
+
+    if not user_data:
+        return jsonify({'error': 'User not found'}), 404
+
+    return jsonify({'user': user_data})
+
+
 # ==================== ADDITIONAL API ENDPOINTS ====================
 
 @app.route('/api/badge/count', methods=['GET'])
