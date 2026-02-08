@@ -147,6 +147,16 @@ class UserMonitor:
 
                 for msg in pending_msgs:
                     try:
+                        # Mark as 'sending' first to prevent duplicate sends
+                        cursor.execute("""
+                            UPDATE pending_messages SET status = 'sending' WHERE id = ? AND status = 'pending'
+                        """, (msg['id'],))
+                        conn.commit()
+
+                        # Check if we actually got the lock (status was still 'pending')
+                        if cursor.rowcount == 0:
+                            continue  # Another process already picked it up
+
                         # Send the message
                         reply_to = msg['reply_to_message_id'] if msg['reply_to_message_id'] else None
                         sent = await self.client.send_message(
