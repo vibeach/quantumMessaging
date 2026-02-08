@@ -753,15 +753,123 @@ def api_send_media():
 @login_required
 def tutorials():
     """Safe landing page - shows fake Home Assistant content."""
-    return render_template('multi/messages_v6.html',
-                         messages=[],
-                         my_name='',
-                         target_name='',
-                         page=1,
-                         has_more=False,
-                         total=0,
-                         last_refresh=datetime.now().strftime('%H:%M:%S'),
-                         history_unlocked=False)
+    return render_template('multi/tutorials.html',
+                         last_refresh=datetime.now().strftime('%H:%M:%S'))
+
+
+@app.route('/messages')
+@login_required
+def messages():
+    """Alias for index - main message view."""
+    return redirect(url_for('index'))
+
+
+@app.route('/list')
+@login_required
+def message_list():
+    """Compact list view of messages."""
+    user = get_current_user()
+
+    # Check if setup is complete
+    if not user_manager.is_setup_complete(user['id']):
+        return redirect(url_for('setup'))
+
+    db = get_user_db()
+    if not db:
+        return redirect(url_for('setup'))
+
+    cursor = db.cursor()
+
+    # Get messages in list format
+    page = request.args.get('page', 1, type=int)
+    per_page = 100
+    offset = (page - 1) * per_page
+
+    cursor.execute("""
+        SELECT * FROM messages
+        WHERE (deleted = 0 OR deleted IS NULL)
+        ORDER BY timestamp DESC
+        LIMIT ? OFFSET ?
+    """, (per_page, offset))
+    messages = [dict(row) for row in cursor.fetchall()]
+
+    # Get config for display names
+    config = get_user_config()
+    my_name = user['username']
+    target_name = config.get('target_display_name', 'Them') if config else 'Them'
+
+    return render_template('multi/list.html',
+                         messages=messages,
+                         my_name=my_name,
+                         target_name=target_name,
+                         page=page,
+                         has_more=len(messages) == per_page,
+                         last_refresh=datetime.now().strftime('%H:%M:%S'))
+
+
+@app.route('/medi')
+@login_required
+def medi():
+    """Media gallery view."""
+    user = get_current_user()
+
+    # Check if setup is complete
+    if not user_manager.is_setup_complete(user['id']):
+        return redirect(url_for('setup'))
+
+    db = get_user_db()
+    if not db:
+        return redirect(url_for('setup'))
+
+    cursor = db.cursor()
+
+    # Get media messages
+    page = request.args.get('page', 1, type=int)
+    filter_type = request.args.get('type', '')
+    per_page = 30
+    offset = (page - 1) * per_page
+
+    if filter_type:
+        cursor.execute("""
+            SELECT * FROM messages
+            WHERE media_type = ? AND media_path IS NOT NULL AND media_path != ''
+            AND (deleted = 0 OR deleted IS NULL)
+            ORDER BY timestamp DESC
+            LIMIT ? OFFSET ?
+        """, (filter_type, per_page, offset))
+    else:
+        cursor.execute("""
+            SELECT * FROM messages
+            WHERE media_type IS NOT NULL AND media_path IS NOT NULL AND media_path != ''
+            AND (deleted = 0 OR deleted IS NULL)
+            ORDER BY timestamp DESC
+            LIMIT ? OFFSET ?
+        """, (per_page, offset))
+
+    media_list = [dict(row) for row in cursor.fetchall()]
+
+    # Get media type counts
+    cursor.execute("""
+        SELECT media_type, COUNT(*) as count
+        FROM messages
+        WHERE media_type IS NOT NULL AND media_path IS NOT NULL AND media_path != ''
+        AND (deleted = 0 OR deleted IS NULL)
+        GROUP BY media_type
+    """)
+    stats = {row['media_type']: row['count'] for row in cursor.fetchall()}
+
+    # Get config for display names
+    config = get_user_config()
+    my_name = user['username']
+
+    return render_template('multi/medi.html',
+                         media=media_list,
+                         stats=stats,
+                         my_name=my_name,
+                         page=page,
+                         has_more=len(media_list) == per_page,
+                         filter_type=filter_type,
+                         last_refresh=datetime.now().strftime('%H:%M:%S'))
 
 
 @app.route('/settings')
@@ -783,6 +891,23 @@ def serve_static(filename):
     """Serve static files."""
     static_path = os.path.join(os.path.dirname(__file__), 'static')
     return send_from_directory(static_path, filename)
+
+
+@app.route('/media/<path:filename>')
+@login_required
+def serve_media(filename):
+    """Serve user's media files."""
+    user = get_current_user()
+    if not user:
+        return "Unauthorized", 401
+
+    # Media is stored in user's folder: data/users/{username}/media/
+    media_path = os.path.join(DATA_DIR, 'users', user['username'], 'media')
+
+    if not os.path.exists(media_path):
+        return "Media not found", 404
+
+    return send_from_directory(media_path, filename)
 
 
 # ==================== STARTUP ====================

@@ -1,0 +1,328 @@
+{% extends "multi/base_v6.html" %}
+
+{% block title %}Media - Quantum Messaging{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .top-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+
+    .back-btn, .filter-btn {
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .back-btn:hover, .filter-btn:hover {
+        background: #4b5563;
+    }
+
+    .filter-btn.active {
+        background: var(--accent);
+    }
+
+    .refresh-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .refresh-time {
+        flex: 1;
+    }
+
+    .refresh-btn {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .stats-bar {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .stat-count {
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .media-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .media-item {
+        position: relative;
+        aspect-ratio: 1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--bg);
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .media-item:hover {
+        transform: scale(1.02);
+    }
+
+    .media-item img,
+    .media-item video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .media-item .media-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        color: var(--text-muted);
+    }
+
+    .media-item .media-type-badge {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+
+    .media-item .media-time {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    .media-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        background: var(--border);
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .no-media {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        padding: 16px;
+        font-size: 13px;
+    }
+
+    .pagination a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .page-num {
+        color: var(--text-muted);
+    }
+
+    /* Modal for viewing media */
+    .media-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.9);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .media-modal.active {
+        display: flex;
+    }
+
+    .media-modal img,
+    .media-modal video {
+        max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+    }
+
+    .media-modal-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        background: rgba(0,0,0,0.5);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="top-bar card">
+    <div class="top-actions">
+        <a href="{{ url_for('index') }}" class="back-btn">Back</a>
+        <a href="{{ url_for('medi') }}" class="filter-btn {% if not filter_type %}active{% endif %}">All</a>
+        {% if stats.get('photo') %}
+        <a href="{{ url_for('medi', type='photo') }}" class="filter-btn {% if filter_type == 'photo' %}active{% endif %}">Photos</a>
+        {% endif %}
+        {% if stats.get('video') or stats.get('video_note') %}
+        <a href="{{ url_for('medi', type='video') }}" class="filter-btn {% if filter_type == 'video' %}active{% endif %}">Videos</a>
+        {% endif %}
+        {% if stats.get('voice') or stats.get('audio') %}
+        <a href="{{ url_for('medi', type='voice') }}" class="filter-btn {% if filter_type == 'voice' %}active{% endif %}">Audio</a>
+        {% endif %}
+        {% if stats.get('document') %}
+        <a href="{{ url_for('medi', type='document') }}" class="filter-btn {% if filter_type == 'document' %}active{% endif %}">Docs</a>
+        {% endif %}
+    </div>
+    <div class="refresh-info">
+        <span class="refresh-time">Last updated: {{ last_refresh }}</span>
+        <a href="?page={{ page }}{% if filter_type %}&type={{ filter_type }}{% endif %}" onclick="location.reload();return false;" class="refresh-btn">Refresh</a>
+    </div>
+</div>
+
+<div class="stats-bar">
+    {% for media_type, count in stats.items() %}
+    <span class="stat-item">
+        <span class="stat-count">{{ count }}</span> {{ media_type }}
+    </span>
+    {% endfor %}
+</div>
+
+<div class="card">
+    {% if media %}
+    <div class="media-grid">
+        {% for item in media %}
+        <div class="media-item" onclick="openMedia('{{ item.media_path }}', '{{ item.media_type }}')">
+            <span class="media-type-badge">{{ item.media_type }}</span>
+            {% if item.media_type == 'photo' %}
+                <img src="/media/{{ item.media_path }}" alt="Photo" loading="lazy">
+            {% elif item.media_type in ['video', 'video_note', 'circle'] %}
+                {% if item.media_snapshots %}
+                    <img src="/media/{{ item.media_snapshots.split(',')[0] }}" alt="Video thumbnail" loading="lazy">
+                {% else %}
+                    <div class="media-placeholder">Video</div>
+                {% endif %}
+            {% elif item.media_type in ['voice', 'audio'] %}
+                <div class="media-placeholder">Audio</div>
+            {% else %}
+                <div class="media-placeholder">{{ item.media_type }}</div>
+            {% endif %}
+            <span class="media-time">{{ item.timestamp[:10] if item.timestamp else '' }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-media">
+        <p>No media found</p>
+        <p style="font-size: 12px; margin-top: 8px;">Media will appear here when received in messages</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}{% if filter_type %}&type={{ filter_type }}{% endif %}">Previous</a>
+    {% endif %}
+    <span class="page-num">Page {{ page }}</span>
+    {% if has_more %}
+    <a href="?page={{ page + 1 }}{% if filter_type %}&type={{ filter_type }}{% endif %}">Next</a>
+    {% endif %}
+</div>
+
+<!-- Media Modal -->
+<div class="media-modal" id="mediaModal" onclick="closeMedia()">
+    <span class="media-modal-close" onclick="closeMedia()">&times;</span>
+    <div id="modalContent"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openMedia(path, type) {
+    const modal = document.getElementById('mediaModal');
+    const content = document.getElementById('modalContent');
+
+    if (type === 'photo') {
+        content.innerHTML = `<img src="/media/${path}" alt="Photo">`;
+    } else if (['video', 'video_note', 'circle'].includes(type)) {
+        content.innerHTML = `<video src="/media/${path}" controls autoplay></video>`;
+    } else if (['voice', 'audio'].includes(type)) {
+        content.innerHTML = `<audio src="/media/${path}" controls autoplay></audio>`;
+    } else {
+        content.innerHTML = `<p style="color: white;">Cannot preview this file type</p>`;
+    }
+
+    modal.classList.add('active');
+    event.stopPropagation();
+}
+
+function closeMedia() {
+    const modal = document.getElementById('mediaModal');
+    const content = document.getElementById('modalContent');
+    content.innerHTML = '';
+    modal.classList.remove('active');
+}
+
+// Close on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMedia();
+    }
+});
+</script>
+{% endblock %}

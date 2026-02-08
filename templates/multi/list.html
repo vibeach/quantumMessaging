@@ -1,0 +1,225 @@
+{% extends "multi/base_v6.html" %}
+
+{% block title %}Message List - Quantum Messaging{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .top-bar {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .top-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+
+    .back-btn {
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .back-btn:hover {
+        background: #4b5563;
+    }
+
+    .search-form {
+        display: flex;
+        gap: 8px;
+        flex: 1;
+    }
+
+    .search-form input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        background: var(--card-bg);
+        color: var(--text);
+    }
+
+    .search-form input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .refresh-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .refresh-time {
+        flex: 1;
+    }
+
+    .refresh-btn {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .list-container {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+    .list-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .list-table th,
+    .list-table td {
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .list-table th {
+        background: var(--bg);
+        font-weight: 600;
+        font-size: 10px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+    }
+
+    .list-table tr:hover {
+        background: var(--bg);
+    }
+
+    .msg-time {
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+
+    .msg-sender {
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .msg-sender.me {
+        color: var(--author-a);
+    }
+
+    .msg-sender.them {
+        color: var(--author-b);
+    }
+
+    .msg-text {
+        word-break: break-word;
+        max-width: 400px;
+    }
+
+    .msg-media {
+        color: var(--text-muted);
+        font-style: italic;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        padding: 16px;
+        font-size: 13px;
+    }
+
+    .pagination a {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .page-num {
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="top-bar card">
+    <div class="top-actions">
+        <a href="{{ url_for('index') }}" class="back-btn">Back</a>
+        <div class="search-form">
+            <input type="text" id="search-input" placeholder="Filter messages..." autocomplete="off" onkeyup="filterMessages()">
+        </div>
+    </div>
+    <div class="refresh-info">
+        <span class="refresh-time">Last updated: {{ last_refresh }}</span>
+        <a href="?page={{ page }}" onclick="location.reload();return false;" class="refresh-btn">Refresh</a>
+    </div>
+</div>
+
+<div class="card list-container">
+    <table class="list-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>From</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody id="message-list">
+            {% for msg in messages %}
+            <tr class="msg-row">
+                <td class="msg-time">{{ msg.timestamp[:16] if msg.timestamp else '--' }}</td>
+                <td class="msg-sender {% if msg.sender_name == my_name %}me{% else %}them{% endif %}">
+                    {{ msg.sender_name[:10] if msg.sender_name else '--' }}
+                </td>
+                <td class="msg-text">
+                    {% if msg.text %}
+                        {{ msg.text[:100] }}{% if msg.text|length > 100 %}...{% endif %}
+                    {% elif msg.media_type %}
+                        <span class="msg-media">[{{ msg.media_type }}]</span>
+                    {% else %}
+                        --
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" style="text-align: center; color: var(--text-muted);">No messages yet</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}">Previous</a>
+    {% endif %}
+    <span class="page-num">Page {{ page }}</span>
+    {% if has_more %}
+    <a href="?page={{ page + 1 }}">Next</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterMessages() {
+    const filter = document.getElementById('search-input').value.toLowerCase();
+    const rows = document.querySelectorAll('.msg-row');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

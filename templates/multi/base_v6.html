@@ -260,8 +260,11 @@
                 {% if global_my_unread is defined and global_my_unread > 0 %}<span class="unread-me" title="Unread by them">{{ global_my_unread }}</span>{% endif %}
             </span>
             <nav class="site-nav">
-                <span style="font-size: 0.8rem; color: var(--text-muted);">{{ session.username }}</span>
-                <a href="{{ url_for('settings') }}" class="{% if request.endpoint == 'settings' %}active{% endif %}">Settings</a>
+                <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Mes</a>
+                <a href="{{ url_for('message_list') }}" class="{% if request.endpoint == 'message_list' %}active{% endif %}">List</a>
+                <a href="{{ url_for('medi') }}" class="{% if request.endpoint == 'medi' %}active{% endif %}">Medi</a>
+                <a href="{{ url_for('tutorials') }}" class="{% if request.endpoint == 'tutorials' %}active{% endif %}">Tut</a>
+                <a href="{{ url_for('settings') }}" class="{% if request.endpoint == 'settings' %}active{% endif %}">Set</a>
                 <a href="{{ url_for('logout') }}">Exit</a>
             </nav>
         </div>
