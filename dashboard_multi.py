@@ -329,7 +329,7 @@ def index():
 
     cursor.execute("""
         SELECT * FROM messages
-        WHERE deleted = 0
+        WHERE (deleted = 0 OR deleted IS NULL)
         ORDER BY timestamp DESC
         LIMIT ? OFFSET ?
     """, (per_page, offset))
@@ -371,6 +371,7 @@ def index():
                          has_more=len(messages) == per_page,
                          total=total,
                          last_refresh=datetime.now().strftime('%H:%M:%S'),
+                         server_time=datetime.utcnow().isoformat(),
                          history_unlocked=history_unlocked,
                          refresh_delay=2)
 
@@ -455,7 +456,13 @@ def api_delete():
 
     cursor = db.cursor()
 
-    # Queue for Telegram deletion
+    # Immediately mark as deleted in local DB (hide from view)
+    cursor.execute("""
+        UPDATE messages SET deleted = 1, deleted_at = ?
+        WHERE message_id = ? AND chat_id = ?
+    """, (datetime.utcnow().isoformat(), message_id, chat_id))
+
+    # Queue for Telegram deletion (to delete on Telegram's side too)
     cursor.execute("""
         INSERT INTO pending_deletes (message_id, chat_id, status)
         VALUES (?, ?, 'pending')
@@ -481,7 +488,7 @@ def api_messages():
 
     cursor.execute("""
         SELECT * FROM messages
-        WHERE deleted = 0
+        WHERE (deleted = 0 OR deleted IS NULL)
         ORDER BY timestamp DESC
         LIMIT ? OFFSET ?
     """, (limit, offset))
@@ -489,6 +496,33 @@ def api_messages():
     messages = [dict(row) for row in cursor.fetchall()]
 
     return jsonify({'success': True, 'messages': messages})
+
+
+@app.route('/api/deleted-since', methods=['GET'])
+@login_required
+def api_deleted_since():
+    """Return message IDs deleted after a given timestamp."""
+    since = request.args.get('since', '')
+    if not since:
+        return jsonify({'error': 'since parameter required'}), 400
+
+    db = get_user_db()
+    if not db:
+        return jsonify({'error': 'Database not found'}), 500
+
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT message_id, chat_id FROM messages
+        WHERE deleted = 1 AND deleted_at > ?
+    """, (since,))
+
+    deleted = [{'message_id': row['message_id'], 'chat_id': row['chat_id']}
+               for row in cursor.fetchall()]
+
+    return jsonify({
+        'deleted': deleted,
+        'server_time': datetime.utcnow().isoformat()
+    })
 
 
 # ==================== ADDITIONAL API ENDPOINTS ====================
