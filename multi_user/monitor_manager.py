@@ -110,6 +110,10 @@ class UserMonitor:
 
             # Run until disconnected
             self.running = True
+
+            # Start background task to process pending actions
+            asyncio.create_task(self._process_pending_actions(target_id))
+
             await self.client.run_until_disconnected()
 
         except Exception as e:
@@ -117,6 +121,112 @@ class UserMonitor:
             self.last_error = str(e)
         finally:
             self.running = False
+
+    async def _process_pending_actions(self, target_id):
+        """Process pending messages, reads, and deletes."""
+        import sqlite3
+
+        while self.running:
+            try:
+                conn = sqlite3.connect(self.db_path)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+
+                # Process pending messages
+                cursor.execute("""
+                    SELECT id, text, reply_to_message_id FROM pending_messages
+                    WHERE status = 'pending'
+                    ORDER BY created_at ASC LIMIT 5
+                """)
+                pending_msgs = cursor.fetchall()
+
+                for msg in pending_msgs:
+                    try:
+                        # Send the message
+                        reply_to = msg['reply_to_message_id'] if msg['reply_to_message_id'] else None
+                        sent = await self.client.send_message(
+                            target_id,
+                            msg['text'],
+                            reply_to=reply_to
+                        )
+
+                        # Update status to sent
+                        cursor.execute("""
+                            UPDATE pending_messages
+                            SET status = 'sent', sent_at = ?, message_id = ?
+                            WHERE id = ?
+                        """, (datetime.utcnow().isoformat(), sent.id, msg['id']))
+                        conn.commit()
+
+                        logger.info(f"[{self.username}] Sent message: {msg['text'][:50]}...")
+
+                    except Exception as e:
+                        logger.error(f"[{self.username}] Error sending message: {e}")
+                        cursor.execute("""
+                            UPDATE pending_messages SET status = 'failed' WHERE id = ?
+                        """, (msg['id'],))
+                        conn.commit()
+
+                # Process pending reads
+                cursor.execute("""
+                    SELECT id, message_id, chat_id FROM pending_reads
+                    WHERE status = 'pending'
+                    ORDER BY created_at ASC LIMIT 10
+                """)
+                pending_reads = cursor.fetchall()
+
+                for read in pending_reads:
+                    try:
+                        await self.client.send_read_acknowledge(
+                            read['chat_id'],
+                            max_id=read['message_id']
+                        )
+                        cursor.execute("""
+                            UPDATE pending_reads
+                            SET status = 'completed', completed_at = ?
+                            WHERE id = ?
+                        """, (datetime.utcnow().isoformat(), read['id']))
+                        conn.commit()
+                    except Exception as e:
+                        logger.error(f"[{self.username}] Error marking read: {e}")
+
+                # Process pending deletes
+                cursor.execute("""
+                    SELECT id, message_id, chat_id FROM pending_deletes
+                    WHERE status = 'pending'
+                    ORDER BY created_at ASC LIMIT 10
+                """)
+                pending_deletes = cursor.fetchall()
+
+                for delete in pending_deletes:
+                    try:
+                        await self.client.delete_messages(
+                            delete['chat_id'],
+                            [delete['message_id']]
+                        )
+                        cursor.execute("""
+                            UPDATE pending_deletes
+                            SET status = 'completed', completed_at = ?
+                            WHERE id = ?
+                        """, (datetime.utcnow().isoformat(), delete['id']))
+                        conn.commit()
+
+                        # Also mark as deleted in messages table
+                        cursor.execute("""
+                            UPDATE messages SET deleted = 1, deleted_at = ?
+                            WHERE message_id = ? AND chat_id = ?
+                        """, (datetime.utcnow().isoformat(), delete['message_id'], delete['chat_id']))
+                        conn.commit()
+                    except Exception as e:
+                        logger.error(f"[{self.username}] Error deleting message: {e}")
+
+                conn.close()
+
+            except Exception as e:
+                logger.error(f"[{self.username}] Error in pending actions: {e}")
+
+            # Check every 2 seconds
+            await asyncio.sleep(2)
 
     async def _save_message(self, message, chat_id):
         """Save a message to user's database."""
