@@ -97,7 +97,7 @@
             {% set is_from_target = (msg.sender_name != my_name) %}
             {% set is_unread = is_from_target and (msg.marked_read is none or msg.marked_read == 0) %}
             {% set is_unseen = (not is_from_target) and (msg.seen_by_target is none or msg.seen_by_target == 0) %}
-            <span class="log-entry {% if msg.deleted %}deleted{% endif %} {% if is_unread %}unread{% endif %} {% if is_unseen %}unseen{% endif %} {% if is_lab_entry %}lab-entry{% endif %} {{ 'from-me' if msg.sender_name == my_name else 'from-them' }}" data-ts="{{ msg.timestamp }}" data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}" data-read-at="{{ msg.marked_read_at or '' }}" data-seen-at="{{ msg.seen_by_target_at or '' }}" data-deleted-at="{{ msg.deleted_at or '' }}" data-text="{{ msg.text[:50] | e }}"><span class="msg-time">[{{ msg.timestamp[11:16] if msg.timestamp and msg.timestamp|length > 16 else msg.timestamp }}]</span><span class="time-ago"></span> {{ msg.text }}{% if msg.media_type %} <i>[{{ msg.media_type }}]</i>{% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript }}</span>{% endif %}{% endif %}{% if msg.reactions %}<span class="reactions" data-reactions="{{ msg.reactions }}"></span>{% endif %}{% if msg.deleted %} <mark>x</mark><span class="deleted-time" data-deleted-at="{{ msg.deleted_at or '' }}"></span>{% endif %}{% if is_from_target and not is_lab_entry %}{% if is_unread %}<span class="tick single">✓</span><button class="mark-read-btn" onclick="markRead({{ msg.message_id }}, {{ msg.chat_id }}, this)">→✓✓</button>{% else %}<span class="tick double">✓✓</span><span class="read-time" data-read-at="{{ msg.marked_read_at or '' }}"></span>{% endif %}{% endif %}{% if not is_from_target and msg.seen_by_target and not is_lab_entry %}<span class="seen-time" data-seen-at="{{ msg.seen_by_target_at or '' }}"></span>{% endif %}{% if is_unseen and not is_lab_entry %}<span class="unseen-badge">○</span>{% endif %}{% if not is_lab_entry %}<button class="reply-btn" onclick="setReply({{ msg.message_id }}, '{{ msg.text[:30] | e | replace("'", "\\'") }}{% if msg.text|length > 30 %}...{% endif %}')" title="Reply">↩</button>{% endif %}</span>
+            <span class="log-entry {% if is_unread %}unread{% endif %} {% if is_unseen %}unseen{% endif %} {% if is_lab_entry %}lab-entry{% endif %} {{ 'from-me' if msg.sender_name == my_name else 'from-them' }}" data-ts="{{ msg.timestamp }}" data-msgid="{{ msg.message_id }}" data-chatid="{{ msg.chat_id }}" data-read-at="{{ msg.marked_read_at or '' }}" data-seen-at="{{ msg.seen_by_target_at or '' }}" data-text="{{ msg.text[:50] | e }}"><span class="msg-time">[{{ msg.timestamp[11:16] if msg.timestamp and msg.timestamp|length > 16 else msg.timestamp }}]</span><span class="time-ago"></span> {{ msg.text }}{% if msg.media_type %} <i>[{{ msg.media_type }}]</i>{% if msg.transcript_status == 'pending' %}<span class="transcript-status pending" title="Transcribing...">⏳</span>{% elif msg.transcript_status == 'failed' %}<span class="transcript-status failed" title="Transcription failed">❌</span>{% elif msg.transcript %}<span class="transcript">{{ msg.transcript }}</span>{% endif %}{% endif %}{% if msg.reactions %}<span class="reactions" data-reactions="{{ msg.reactions }}"></span>{% endif %}{% if is_from_target and not is_lab_entry %}{% if is_unread %}<span class="tick single">✓</span><button class="mark-read-btn" onclick="markRead({{ msg.message_id }}, {{ msg.chat_id }}, this)">→✓✓</button>{% else %}<span class="tick double">✓✓</span><span class="read-time" data-read-at="{{ msg.marked_read_at or '' }}"></span>{% endif %}{% endif %}{% if not is_from_target and msg.seen_by_target and not is_lab_entry %}<span class="seen-time" data-seen-at="{{ msg.seen_by_target_at or '' }}"></span>{% endif %}{% if is_unseen and not is_lab_entry %}<span class="unseen-badge">○</span>{% endif %}{% if not is_lab_entry %}<button class="reply-btn" onclick="setReply({{ msg.message_id }}, '{{ msg.text[:30] | e | replace("'", "\\'") }}{% if msg.text|length > 30 %}...{% endif %}')" title="Reply">↩</button>{% endif %}</span>
         {% endfor %}
     </div>
     {% else %}
@@ -286,7 +286,6 @@
     [data-theme="dark"] .from-them.age-2 { color: #d4d4d4; }
     [data-theme="dark"] .from-them.age-3 { color: #a3a3a3; }
 
-    .log-entry.deleted { text-decoration: line-through; opacity: 0.6; }
     .log-entry.unread { background: #fef3c7; padding: 1px 2px; border-radius: 1px; border-left: 1px solid #f59e0b; }
     .log-entry.unseen { background: #dbeafe; padding: 1px 2px; border-radius: 1px; border-left: 1px solid #3b82f6; }
     .log-entry.lab-entry { color: #ec4899; font-style: italic; }
@@ -298,9 +297,7 @@
     .msg-time { color: #9ca3af; font-size: 9px; }
     .time-ago { color: #6b7280; font-size: 9px; }
     .read-time, .seen-time { color: #10b981; font-size: 8px; margin-left: 1px; }
-    .deleted-time { color: #ef4444; font-size: 8px; margin-left: 1px; }
     .log-entry i { font-style: normal; color: var(--text-muted); font-size: 9px; }
-    .log-entry mark { background: #fecaca; color: #991b1b; padding: 0 1px; border-radius: 1px; font-size: 8px; text-decoration: none; }
     .reactions { background: #f3f4f6; padding: 0 2px; border-radius: 4px; font-size: 9px; margin-left: 1px; }
     .transcript { font-style: italic; font-size: 9px; margin-left: 4px; text-decoration: underline; text-decoration-color: #ec4899; text-underline-offset: 2px; }
     [data-theme="dark"] .transcript { text-decoration-color: #f472b6; }
@@ -953,11 +950,6 @@
         if (seenAt) el.textContent = formatReadTime(parseUTC(seenAt), 's');
     });
 
-    document.querySelectorAll('.deleted-time').forEach(el => {
-        const deletedAt = el.dataset.deletedAt;
-        if (deletedAt) el.textContent = formatReadTime(parseUTC(deletedAt), 'd');
-    });
-
     document.querySelectorAll('.reactions').forEach(el => {
         try {
             const reactions = JSON.parse(el.dataset.reactions);
@@ -1151,6 +1143,40 @@
         });
         return false;
     }
+
+    // Delete-sync polling: remove deleted messages in real time
+    (function() {
+        let deleteSyncWatermark = '{{ server_time|default("") }}';
+        if (!deleteSyncWatermark) return;
+
+        const DELETE_POLL_INTERVAL = 4000;
+        let deletePollTimer = null;
+
+        function pollDeletedMessages() {
+            if (document.hidden || !realMode) return;
+
+            fetch('/api/deleted-since?since=' + encodeURIComponent(deleteSyncWatermark))
+                .then(r => r.json())
+                .then(data => {
+                    if (data.server_time) {
+                        deleteSyncWatermark = data.server_time;
+                    }
+                    if (data.deleted && data.deleted.length > 0) {
+                        data.deleted.forEach(d => {
+                            const el = document.querySelector(
+                                '.log-entry[data-msgid="' + d.message_id + '"][data-chatid="' + d.chat_id + '"]'
+                            );
+                            if (el) el.remove();
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.log('[DeleteSync] Poll error:', err);
+                });
+        }
+
+        deletePollTimer = setInterval(pollDeletedMessages, DELETE_POLL_INTERVAL);
+    })();
 
     // Auto-refresh
     setTimeout(() => location.reload(), 30000);
