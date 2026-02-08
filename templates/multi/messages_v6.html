@@ -31,7 +31,7 @@
         <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
         <button class="media-btn-nice" onclick="document.getElementById('photo-input').click()" title="Photo">📷</button>
         <button class="media-btn-nice" onclick="document.getElementById('video-input').click()" title="Video">🎬</button>
-        <button class="media-btn-nice circle-btn-nice" onclick="document.getElementById('circle-input').click()" title="Video circle">⚫</button>
+
         <button class="media-btn-nice" id="notif-btn" onclick="enableNotifications()" title="Enable notifications">🔔</button>
         <button class="media-btn-nice" id="badge-btn" onclick="toggleBadge()" title="Toggle badge count">🔴</button>
         <button class="media-btn-nice schedule-btn" id="schedule-btn" onclick="toggleScheduleMenu()" title="Schedule message">⏰</button>
@@ -64,7 +64,7 @@
 <!-- Hidden file inputs -->
 <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="sendMedia(this, 'photo')">
 <input type="file" id="video-input" accept="video/*" style="display:none" onchange="sendMedia(this, 'video')">
-<input type="file" id="circle-input" accept="video/*" style="display:none" onchange="sendMedia(this, 'circle')">
+
 
 <!-- Upload progress overlay -->
 <div id="upload-progress-overlay" class="upload-overlay" style="display:none">
@@ -131,7 +131,7 @@
         <button class="refresh-btn-nice" onclick="location.reload()">↻</button>
         <button class="media-btn-nice" title="Add device">📷</button>
         <button class="media-btn-nice" title="Add scene">🎬</button>
-        <button class="media-btn-nice circle-btn-nice" title="Add routine">⚫</button>
+
         <button class="media-btn-nice" id="notif-btn-fake" onclick="enableNotifications()" title="Enable notifications">🔔</button>
         <button class="media-btn-nice" id="badge-btn-fake" onclick="toggleBadge()" title="Toggle badge count">🔴</button>
         <button class="media-btn-nice schedule-btn" title="Schedule">⏰</button>
@@ -217,10 +217,6 @@
     [data-theme="dark"] .text-size-menu input { background: #374151; border-color: #4b5563; }
     .media-btn-nice { background: var(--bg); border: 1px solid var(--border); width: 26px; height: 26px; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
     .media-btn-nice:hover { background: var(--border); }
-    .circle-btn-nice { background: #fef3c7; }
-    .circle-btn-nice:hover { background: #fde68a; }
-    [data-theme="dark"] .circle-btn-nice { background: #78350f; }
-    [data-theme="dark"] .circle-btn-nice:hover { background: #92400e; }
 
     .top-actions { display: flex; gap: 4px; }
     .send-form { display: flex; gap: 4px; flex: 1; align-items: flex-start; flex-wrap: wrap; }
