@@ -292,20 +292,41 @@ def main():
         monitor = "monitor running" if u.get("is_running") else "monitor stopped"
         print(f"  {i}. {u['username']:<15} [{status}, {setup}, {monitor}]")
 
+    print(f"\n  a. Download ALL users")
     print()
-    choice = input("Select user number (or 'q' to quit): ").strip()
+    choice = input("Select user number, 'a' for all, or 'q' to quit: ").strip()
     if choice.lower() in ("q", "quit", "exit"):
         return
 
-    try:
-        idx = int(choice) - 1
-        if idx < 0 or idx >= len(users):
-            raise ValueError
-    except ValueError:
-        print("Invalid selection.")
-        sys.exit(1)
+    if choice.lower() == "a":
+        skip_input = input("Users to skip (comma-separated names, or Enter for none): ").strip()
+        skip_names = {s.strip().lower() for s in skip_input.split(",") if s.strip()} if skip_input else set()
+        selected_users = [u for u in users if u["username"].lower() not in skip_names]
 
-    selected = users[idx]
+        if skip_names:
+            print(f"\n  Skipping: {', '.join(skip_names)}")
+        print(f"  Downloading {len(selected_users)} user(s)...\n")
+
+        for j, user in enumerate(selected_users, 1):
+            print(f"\n{'='*60}")
+            print(f"  User {j}/{len(selected_users)}: {user['username']}")
+            print(f"{'='*60}")
+            download_single_user(user)
+
+    else:
+        try:
+            idx = int(choice) - 1
+            if idx < 0 or idx >= len(users):
+                raise ValueError
+        except ValueError:
+            print("Invalid selection.")
+            sys.exit(1)
+
+        download_single_user(users[idx])
+
+
+def download_single_user(selected):
+    """Download all history for a single user with monitor safety."""
     username = selected["username"]
     monitor_was_running = bool(selected.get("is_running"))
 
@@ -314,11 +335,11 @@ def main():
         creds = fetch_telegram_creds(username)
     except Exception as e:
         print(f"ERROR: Could not fetch credentials: {e}")
-        sys.exit(1)
+        return
 
     if not creds.get("session_string"):
         print(f"ERROR: No session string available for '{username}'")
-        sys.exit(1)
+        return
 
     # SAFETY: stop monitor to ensure only one TCP connection uses this auth key
     if monitor_was_running:
