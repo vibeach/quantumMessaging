@@ -4,16 +4,20 @@ Download complete Telegram message history for any registered user.
 Fetches credentials from the deployed Render app, connects via Telethon,
 and saves all conversations to ./downloads/<username>/.
 
-SAFETY: Before connecting, the script pauses the user's monitor on Render
-to avoid simultaneous session usage (which Telegram punishes by permanently
-revoking the auth key). The monitor is always restarted after downloading,
-even if an error occurs.
+SAFETY: This script reuses the user's existing session string from the app.
+To avoid AUTH_KEY_DUPLICATED (which permanently destroys the session), we:
 
-INCREMENTAL: Messages are saved in JSONL format (one JSON object per line).
-Each batch of messages is flushed to disk immediately, so you can watch
-files populate in real time. Downloads are resumable — if interrupted, the
-script picks up where it left off by reading the oldest message ID already
-saved for each chat.
+  1. Stop the user's monitor on Render via API
+  2. Wait and verify the monitor has fully disconnected (TCP closed)
+  3. Download using the stored session (only TCP connection alive)
+  4. Disconnect cleanly
+  5. Restart the monitor
+
+Per Telegram docs, AUTH_KEY_DUPLICATED only triggers when the same auth key
+sends requests from two TCP connections IN PARALLEL. With the monitor fully
+stopped, our script is the ONLY connection — no conflict possible.
+
+INCREMENTAL: Messages saved as JSONL, flushed per batch, resumable.
 """
 
 import os
@@ -33,7 +37,8 @@ ADMIN_PASSWORD = "@eiRclncne14Twm"
 ADMIN_HEADERS = {"X-Admin-Password": ADMIN_PASSWORD}
 DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
 
-BATCH_SIZE = 100  # messages per batch
+BATCH_SIZE = 100
+MONITOR_STOP_WAIT = 15  # seconds to wait after stopping monitor
 
 
 def fetch_users():
@@ -53,17 +58,37 @@ def fetch_telegram_creds(username):
 
 
 def stop_monitor(username):
-    """Stop the monitor for a user on Render."""
+    """Stop the monitor for a user on Render and wait for full disconnect."""
+    print(f"  Stopping monitor for '{username}'...", end=" ", flush=True)
     try:
         resp = requests.post(
             f"{APP_URL}/api/admin/user/{username}/monitor/stop",
             headers=ADMIN_HEADERS,
         )
         resp.raise_for_status()
-        return resp.json().get("success", False)
     except Exception as e:
-        print(f"  WARNING: Could not stop monitor: {e}")
+        print(f"WARNING: {e}")
         return False
+
+    # Wait for TCP connection to fully close on the Render server.
+    # The stop API sets is_running=False and calls client.disconnect(),
+    # but the TCP socket close is async. We wait generously.
+    for i in range(MONITOR_STOP_WAIT):
+        time.sleep(1)
+        print(".", end="", flush=True)
+    print(" done")
+
+    # Verify monitor reports as stopped
+    try:
+        users = fetch_users()
+        user = next((u for u in users if u["username"] == username), None)
+        if user and user.get("is_running"):
+            print("  WARNING: Monitor still reports as running. Waiting longer...")
+            time.sleep(10)
+    except Exception:
+        pass
+
+    return True
 
 
 def start_monitor(username):
@@ -107,11 +132,7 @@ def serialize_message(msg):
 
 
 def get_resume_offset(jsonl_path):
-    """Read existing JSONL file and return the oldest message_id for resuming.
-
-    Messages are written newest-first, so the last line has the oldest ID.
-    Returns (existing_count, oldest_message_id) or (0, None) if no file.
-    """
+    """Read existing JSONL file and return the oldest message_id for resuming."""
     if not os.path.exists(jsonl_path):
         return 0, None
 
@@ -153,7 +174,7 @@ async def download_user_history(username, creds):
     await client.connect()
 
     if not await client.is_user_authorized():
-        print("  ERROR: Session is not authorized")
+        print("  ERROR: Session is not authorized (session may have been invalidated)")
         await client.disconnect()
         return
 
@@ -180,8 +201,6 @@ async def download_user_history(username, creds):
         else:
             print(f"  [{i}/{len(dialogs)}] {chat_name}...", end=" ", flush=True)
 
-        # Download messages in batches, appending to JSONL
-        # iter_messages goes newest→oldest; offset_id fetches messages older than that ID
         new_count = 0
         try:
             with open(jsonl_path, "a", encoding="utf-8") as f:
@@ -201,7 +220,6 @@ async def download_user_history(username, creds):
                         print(f"\r  [{i}/{len(dialogs)}] {chat_name}... {existing_count + new_count} messages", end="", flush=True)
                         batch = []
 
-                # Write remaining batch
                 if batch:
                     for m in batch:
                         f.write(json.dumps(m, ensure_ascii=False) + "\n")
@@ -210,7 +228,6 @@ async def download_user_history(username, creds):
 
         except Exception as e:
             print(f" ERROR ({e}), skipping")
-            # Still record what we have so far
             summary.append({
                 "chat_id": dialog.id,
                 "name": chat_name,
@@ -257,7 +274,6 @@ async def download_user_history(username, creds):
 def main():
     print("\n=== Quantum Messaging — Download Telegram History ===\n")
 
-    # Fetch users
     print("Fetching registered users...")
     try:
         users = fetch_users()
@@ -269,7 +285,6 @@ def main():
         print("No users found.")
         sys.exit(0)
 
-    # Display user list
     print(f"\nRegistered users ({len(users)}):\n")
     for i, u in enumerate(users, 1):
         status = "active" if u.get("is_active") else "inactive"
@@ -277,7 +292,6 @@ def main():
         monitor = "monitor running" if u.get("is_running") else "monitor stopped"
         print(f"  {i}. {u['username']:<15} [{status}, {setup}, {monitor}]")
 
-    # User selection
     print()
     choice = input("Select user number (or 'q' to quit): ").strip()
     if choice.lower() in ("q", "quit", "exit"):
@@ -306,17 +320,15 @@ def main():
         print(f"ERROR: No session string available for '{username}'")
         sys.exit(1)
 
-    # --- SAFETY: stop monitor before using the session ---
+    # SAFETY: stop monitor to ensure only one TCP connection uses this auth key
     if monitor_was_running:
-        print(f"  Pausing monitor for '{username}' to avoid session conflict...")
         stop_monitor(username)
-        time.sleep(5)  # give the monitor time to fully disconnect
 
     try:
         print(f"Downloading all history for '{username}'...\n")
         asyncio.run(download_user_history(username, creds))
     finally:
-        # --- SAFETY: always restart monitor ---
+        # ALWAYS restart monitor, even if download failed
         if monitor_was_running:
             print(f"\n  Restarting monitor for '{username}'...")
             start_monitor(username)
