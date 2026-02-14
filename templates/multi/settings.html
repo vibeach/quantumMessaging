@@ -84,6 +84,64 @@
         padding: 8px 16px;
         font-size: 0.875rem;
     }
+
+    .danger-zone {
+        border: 1px solid #dc2626;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 8px;
+    }
+
+    .danger-zone h2 {
+        color: #dc2626 !important;
+        border-bottom-color: #dc2626 !important;
+    }
+
+    .danger-zone .setting-item {
+        border-bottom: none;
+    }
+
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-overlay.visible {
+        display: flex;
+    }
+
+    .modal-box {
+        background: var(--card-bg, #fff);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-box h3 {
+        margin: 0 0 12px;
+        font-size: 1.1rem;
+        color: #dc2626;
+    }
+
+    .modal-box p {
+        margin: 0 0 20px;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
 </style>
 {% endblock %}
 
@@ -149,6 +207,25 @@
             <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">Logout</a>
         </div>
     </div>
+
+    <div class="settings-section danger-zone">
+        <h2>Danger Zone</h2>
+        <div class="setting-item">
+            <span class="setting-label">Permanently delete your account and all associated data</span>
+            <button class="btn btn-sm btn-danger" onclick="showDeleteModal()">Delete Account</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-box">
+        <h3>Delete Account</h3>
+        <p>Are you sure you want to delete your account? All your data and settings will be permanently removed. This action cannot be undone.</p>
+        <div class="modal-actions">
+            <button class="btn btn-sm btn-secondary" onclick="hideDeleteModal()">Cancel</button>
+            <button class="btn btn-sm btn-danger" onclick="confirmDeleteAccount()">Delete Account</button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -160,5 +237,27 @@
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('theme', next);
     }
+
+    function showDeleteModal() {
+        document.getElementById('deleteModal').classList.add('visible');
+    }
+
+    function hideDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('visible');
+    }
+
+    function confirmDeleteAccount() {
+        fetch('/api/delete-account', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/login';
+                }
+            });
+    }
+
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) hideDeleteModal();
+    });
 </script>
 {% endblock %}

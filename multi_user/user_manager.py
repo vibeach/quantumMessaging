@@ -185,6 +185,16 @@ class UserManager:
                 'username': row['username']
             }
 
+    def deactivate_user(self, user_id: int) -> bool:
+        """Deactivate a user account (soft delete)."""
+        with self._get_master_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE users SET is_active = 0 WHERE id = ?
+            """, (user_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
     def get_user(self, user_id: int) -> Optional[Dict]:
         """Get user by ID."""
         with self._get_master_connection() as conn:

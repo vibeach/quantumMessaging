@@ -538,6 +538,38 @@ def api_admin_users():
     return jsonify({'users': users})
 
 
+@app.route('/api/admin/user/<username>/monitor/stop', methods=['POST'])
+def api_admin_stop_monitor(username):
+    """Stop the Telegram monitor for a specific user."""
+    auth = request.headers.get('X-Admin-Password', '')
+    if auth != COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    user = user_manager.get_user_by_username(username.lower())
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    if monitor_manager:
+        monitor_manager.stop_user_monitor(user['id'])
+    return jsonify({'success': True, 'message': f'Monitor stopped for {username}'})
+
+
+@app.route('/api/admin/user/<username>/monitor/start', methods=['POST'])
+def api_admin_start_monitor(username):
+    """Start the Telegram monitor for a specific user."""
+    auth = request.headers.get('X-Admin-Password', '')
+    if auth != COORDINATOR_PASSWORD:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    user = user_manager.get_user_by_username(username.lower())
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    if monitor_manager:
+        monitor_manager.restart_user_monitor(user['id'])
+    return jsonify({'success': True, 'message': f'Monitor started for {username}'})
+
+
 @app.route('/api/admin/user/<username>', methods=['GET'])
 def api_admin_user_details(username):
     """Admin endpoint to get user details including Telegram config."""
@@ -1097,6 +1129,16 @@ def settings():
     return render_template('multi/settings.html',
                          user=user,
                          config=config)
+
+
+@app.route('/api/delete-account', methods=['POST'])
+@login_required
+def api_delete_account():
+    """Deactivate (soft-delete) the current user's account."""
+    user = get_current_user()
+    user_manager.deactivate_user(user['id'])
+    session.clear()
+    return jsonify({'success': True})
 
 
 # ==================== STATIC FILES ====================
